@@ -1,0 +1,41 @@
+[package]
+name = "safety-pass"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+
+categories = [
+    "data-structures",
+    "compilers",
+    "science",
+]
+
+description = "Compiler pass infrastructure for safety-net"
+documentation = "https://matth2k.github.io/safety-pass/"
+homepage = "https://matth2k.github.io/safety-pass/"
+include = [
+    "Cargo.toml",
+    "clippy.toml",
+    "LICENSE-MIT",
+    "LICENSE-APACHE",
+    "README.md",
+    "src/**/*.rs",
+    "tests/**/*.rs",
+    "examples/**/*.rs",
+]
+
+keywords = [
+    "data-structures",
+    "eda",
+    "netlist",
+    "circuits",
+    "hardware",
+]
+
+readme = "README.md"
+repository = "https://github.com/matth2k/safety-pass"
+
+[dependencies]
+safety-net = { version = "0.7.0" }
+thiserror = { version = "2.0.16" }
+log = { version = "0.4.29" }
