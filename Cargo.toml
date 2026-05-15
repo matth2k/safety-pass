@@ -37,5 +37,13 @@ repository = "https://github.com/matth2k/safety-pass"
 
 [dependencies]
 safety-net = { version = "0.7.0" }
+nl-compiler = { version = "0.1.19" }
+sv-parser = { version = "0.13.4" }
 thiserror = { version = "2.0.16" }
 log = { version = "0.4.29" }
+clap = {version = "4.6.1", features = ["derive"] }
+simplelog = {version = "0.12.2" }
+
+[features]
+default = [ "graph" ]
+graph = [ "safety-net/graph" ]

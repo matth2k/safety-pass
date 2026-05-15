@@ -260,7 +260,7 @@ impl CellType {
 }
 
 impl FromStr for CellType {
-    type Err = String;
+    type Err = safety_net::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let pre = match s.split_once("_X") {
@@ -319,7 +319,9 @@ impl FromStr for CellType {
             "FDPE" => Ok(Self::FDPE),
             "FDCE" => Ok(Self::FDCE),
             "MAJ3" => Ok(Self::MAJ3),
-            _ => Err(format!("Unknown primitive type {pre}")),
+            _ => Err(safety_net::Error::ParseError(format!(
+                "Unknown cell type: {s}"
+            ))),
         }
     }
 }
@@ -362,6 +364,11 @@ impl Cell {
                 .collect(),
             params: HashMap::new(),
         }
+    }
+
+    /// Get the cell type
+    pub fn get_type(&self) -> CellType {
+        self.ptype
     }
 
     /// Remap the ith input port to a new net name
@@ -429,6 +436,12 @@ impl Instantiable for Cell {
     }
 }
 
+impl nl_compiler::FromId for Cell {
+    fn from_id(s: &Identifier) -> Result<Self, safety_net::Error> {
+        CellType::from_str(&s.to_string()).map(|ctype| Cell::new(ctype, None))
+    }
+}
+
 /// Errors for running passes
 #[derive(Error, Debug)]
 pub enum Error {
@@ -475,6 +488,11 @@ impl<I: Instantiable> Pipeline<I> {
     /// Add a pass to the end of the pipeline
     pub fn insert<P: Pass<I = I> + 'static>(&mut self, pass: P) {
         self.passes.push(Box::new(pass));
+    }
+
+    /// Add a boxed pass to the end of the pipeline
+    pub fn insert_dyn(&mut self, pass: Box<dyn Pass<I = I>>) {
+        self.passes.push(pass);
     }
 
     /// Run the pipeline on a netlist. If `verify` is true, verify the netlist after each pass.
@@ -576,3 +594,5 @@ impl<C: Instantiable> Pass for Folder<C> {
         ))
     }
 }
+
+pub mod passes;
