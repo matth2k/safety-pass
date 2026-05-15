@@ -3,7 +3,7 @@ use log::{info, warn};
 use nl_compiler::{from_vast, from_vast_overrides};
 use safety_net::Identifier;
 use safety_pass::passes::BasicPasses;
-use safety_pass::{Cell, Pipeline};
+use safety_pass::{Cell, Folder, Pipeline};
 use simplelog::{ColorChoice, ConfigBuilder, TermLogger, TerminalMode};
 use std::collections::HashMap;
 use std::io::Read;
@@ -103,6 +103,12 @@ fn main() -> std::io::Result<()> {
     };
 
     let mut pipeline = Pipeline::default();
+
+    // Add patterns just for the heck of it
+    let mut folder = Folder::new(100);
+    folder.insert(safety_pass::patterns::Idempotent);
+    pipeline.insert(folder);
+
     for pass in args.passes {
         pipeline.insert_dyn(pass.get_pass());
     }

@@ -7,8 +7,15 @@ Compiler pass infrastructure for safety-net
 */
 
 use log::info;
-use safety_net::{Identifier, Instantiable, Logic, Net, NetRef, Netlist, Parameter, format_id};
-use std::{collections::HashMap, fmt, rc::Rc, str::FromStr};
+use safety_net::{
+    DrivenNet, Identifier, Instantiable, Logic, Net, NetRef, Netlist, Parameter, format_id,
+};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt,
+    rc::Rc,
+    str::FromStr,
+};
 use thiserror::Error;
 
 /// A logic cell type
@@ -519,14 +526,26 @@ impl<I: Instantiable> Pipeline<I> {
     }
 }
 
+/// A function that inserts new cells into a netlist.
+pub type Create<'a, I> = dyn Fn(I, Identifier) -> NetRef<I> + 'a;
+/// A function that replaces the first arg with the second in a netlist.
+pub type Replace<'a, I> =
+    dyn FnMut(DrivenNet<I>, DrivenNet<I>) -> Result<(), safety_net::Error> + 'a;
+
 /// A peephole pattern applied cell-wise in the netlist
-pub trait Pattern: fmt::Display {
+pub trait Pattern {
     /// The type of Instantiable in the netlist
     type I: Instantiable;
 
     /// Returns true if the pattern was matched and applied to the cell.
     /// Only return true if the netlist was modified.
-    fn apply(&self, cell: &NetRef<Self::I>) -> Result<bool, Error>;
+    fn apply(
+        &self,
+        cell: &NetRef<Self::I>,
+        cell_type: &Self::I,
+        create: &Create<Self::I>,
+        replace: &mut Replace<Self::I>,
+    ) -> Result<bool, Error>;
 }
 
 /// Greedily folds [Pattern]s
@@ -555,24 +574,59 @@ impl<I: Instantiable> Folder<I> {
     }
 
     /// Apply the patterns in one iteration.
-    fn apply_once(&self, netlist: &Rc<Netlist<I>>) -> Result<bool, Error> {
-        let mut changed = false;
-        for cell in netlist.objects() {
-            for pattern in &self.patterns {
-                changed |= pattern.apply(&cell)?;
-            }
-        }
-        Ok(changed)
-    }
+    fn fold(&self, netlist: &Rc<Netlist<I>>) -> Result<usize, Error> {
+        let mut changing = true;
+        let mut cleaned: HashSet<NetRef<I>> = HashSet::new();
+        let mut i = 0;
+        let create = |t, i| netlist.insert_gate_disconnected(t, i);
 
-    /// Fold with a max number of iterations. Returns the number of iterations until convergence.
-    pub fn fold(&self, netlist: &Rc<Netlist<I>>) -> Result<usize, Error> {
-        for i in 0..self.max_iters {
-            if !self.apply_once(netlist)? {
-                return Ok(i);
+        while changing && i < self.max_iters {
+            let mut replacements: Vec<(DrivenNet<I>, DrivenNet<I>)> = Vec::new();
+            let mut replace = |a: DrivenNet<I>, b: DrivenNet<I>| {
+                replacements.push((a, b));
+                Ok(())
+            };
+
+            let mut change = false;
+            for cell in netlist.objects() {
+                if cleaned.contains(&cell) {
+                    continue;
+                }
+
+                let ctype = cell.get_instance_type().map(|r| r.clone());
+                if let Some(cell_type) = ctype {
+                    for pattern in &self.patterns {
+                        if pattern.apply(&cell, &cell_type, &create, &mut replace)? {
+                            change = true;
+                            break;
+                        }
+                    }
+                }
+
+                if change {
+                    break;
+                }
             }
+
+            if change {
+                for (a, b) in replacements {
+                    let a = netlist.replace_net_uses(a, &b)?;
+                    let a = a.unwrap();
+                    let n = a.outputs().count();
+                    if n == 1 {
+                        cleaned.insert(a);
+                    }
+                }
+            }
+
+            changing &= change;
+            i += 1;
         }
-        Ok(self.max_iters)
+
+        drop(cleaned);
+        netlist.clean()?;
+
+        Ok(i)
     }
 }
 
@@ -596,3 +650,4 @@ impl<C: Instantiable> Pass for Folder<C> {
 }
 
 pub mod passes;
+pub mod patterns;
