@@ -609,11 +609,7 @@ impl<I: Instantiable> Folder<I> {
 
             for (a, b) in replacements {
                 let a = netlist.replace_net_uses(a, &b)?;
-                let a = a.unwrap();
-                let n = a.outputs().count();
-                if n == 1 {
-                    cleaned.insert(a);
-                }
+                cleaned.insert(a.unwrap());
             }
 
             i += 1;
