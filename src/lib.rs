@@ -7,10 +7,11 @@ Compiler pass infrastructure for safety-net
 */
 
 use log::info;
-use safety_net::{Identifier, Instantiable, Logic, Net, Netlist, Parameter, format_id};
+use safety_net::{Identifier, Instantiable, Logic, Net, NetRef, Netlist, Parameter, format_id};
 use std::{collections::HashMap, fmt, rc::Rc, str::FromStr};
 use thiserror::Error;
 
+/// A logic cell type
 #[allow(missing_docs)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CellType {
@@ -329,7 +330,7 @@ impl fmt::Display for CellType {
     }
 }
 
-/// Create an instantiable cell out of the [CellType]
+/// An instantiable cell in some [CellType]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Cell {
     name: Identifier,
@@ -454,9 +455,15 @@ pub trait Pass: fmt::Display {
     }
 }
 
-/// A pass pipeline
+/// A sequential pipeline of [Pass]es
 pub struct Pipeline<I: Instantiable> {
     passes: Vec<Box<dyn Pass<I = I>>>,
+}
+
+impl<I: Instantiable> Default for Pipeline<I> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<I: Instantiable> Pipeline<I> {
@@ -472,26 +479,100 @@ impl<I: Instantiable> Pipeline<I> {
 
     /// Run the pipeline on a netlist. If `verify` is true, verify the netlist after each pass.
     pub fn run(&self, netlist: &Rc<Netlist<I>>, verify: bool) -> Result<String, Error> {
+        let mut res = String::new();
         let n = self.passes.len();
         for (i, pass) in self.passes.iter().enumerate() {
             info!("Running pass {i} ({pass})...");
-            match pass.run(&netlist) {
+            match pass.run(netlist) {
                 Ok(output) => {
-                    if i == n - 1 {
-                        netlist.verify().map_err(std::io::Error::other)?;
-                        return Ok(output);
-                    } else {
+                    res = output;
+                    if i != n - 1 {
                         if verify {
-                            netlist.verify().map_err(std::io::Error::other)?;
+                            netlist.verify()?;
                         }
-                        for line in output.lines() {
-                            info!("{pass}: {}", line)
-                        }
+                        info!("{pass}: {}", res);
                     }
                 }
                 Err(e) => return Err(e),
             }
         }
-        unreachable!();
+        netlist.verify()?;
+        Ok(res)
+    }
+}
+
+/// A peephole pattern applied cell-wise in the netlist
+pub trait Pattern: fmt::Display {
+    /// The type of Instantiable in the netlist
+    type I: Instantiable;
+
+    /// Returns true if the pattern was matched and applied to the cell.
+    /// Only return true if the netlist was modified.
+    fn apply(&self, cell: &NetRef<Self::I>) -> Result<bool, Error>;
+}
+
+/// Greedily folds [Pattern]s
+pub struct Folder<I: Instantiable> {
+    patterns: Vec<Box<dyn Pattern<I = I>>>,
+    max_iters: usize,
+}
+
+impl<I: Instantiable> Folder<I> {
+    /// Create a new empty pipeline
+    pub fn new(max_iters: usize) -> Self {
+        Self {
+            patterns: vec![],
+            max_iters,
+        }
+    }
+
+    /// Set the maximum number of iterations for folding
+    pub fn with_max_iters(self, max_iters: usize) -> Self {
+        Self { max_iters, ..self }
+    }
+
+    /// Add a pattern to the group
+    pub fn insert<P: Pattern<I = I> + 'static>(&mut self, pattern: P) {
+        self.patterns.push(Box::new(pattern));
+    }
+
+    /// Apply the patterns in one iteration.
+    fn apply_once(&self, netlist: &Rc<Netlist<I>>) -> Result<bool, Error> {
+        let mut changed = false;
+        for cell in netlist.objects() {
+            for pattern in &self.patterns {
+                changed |= pattern.apply(&cell)?;
+            }
+        }
+        Ok(changed)
+    }
+
+    /// Fold with a max number of iterations. Returns the number of iterations until convergence.
+    pub fn fold(&self, netlist: &Rc<Netlist<I>>) -> Result<usize, Error> {
+        for i in 0..self.max_iters {
+            if !self.apply_once(netlist)? {
+                return Ok(i);
+            }
+        }
+        Ok(self.max_iters)
+    }
+}
+
+impl<I: Instantiable> fmt::Display for Folder<I> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "PatternFolder({})", self.patterns.len())
+    }
+}
+
+impl<C: Instantiable> Pass for Folder<C> {
+    type I = C;
+
+    fn run(&self, netlist: &Rc<Netlist<Self::I>>) -> Result<String, Error> {
+        let iters = self.fold(netlist)?;
+        Ok(format!(
+            "Folded {} pattterns over {} iterations",
+            self.patterns.len(),
+            iters
+        ))
     }
 }
