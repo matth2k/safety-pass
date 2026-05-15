@@ -43,8 +43,8 @@ impl Pattern for Idempotent {
         }
 
         let c = cell.get_output(0);
+        debug!("Pattern applied to cell {}!", c.as_net());
         replace(c, a)?;
-        debug!("Pattern applied!");
 
         Ok(true)
     }
