@@ -575,12 +575,11 @@ impl<I: Instantiable> Folder<I> {
 
     /// Apply the patterns in one iteration.
     fn fold(&self, netlist: &Rc<Netlist<I>>) -> Result<usize, Error> {
-        let mut changing = true;
         let mut cleaned: HashSet<NetRef<I>> = HashSet::new();
         let mut i = 0;
         let create = |t, i| netlist.insert_gate_disconnected(t, i);
 
-        while changing && i < self.max_iters {
+        while i < self.max_iters {
             let mut replacements: Vec<(DrivenNet<I>, DrivenNet<I>)> = Vec::new();
             let mut replace = |a: DrivenNet<I>, b: DrivenNet<I>| {
                 replacements.push((a, b));
@@ -588,7 +587,7 @@ impl<I: Instantiable> Folder<I> {
             };
 
             let mut change = false;
-            for cell in netlist.objects() {
+            'iter: for cell in netlist.objects() {
                 if cleaned.contains(&cell) {
                     continue;
                 }
@@ -598,28 +597,25 @@ impl<I: Instantiable> Folder<I> {
                     for pattern in &self.patterns {
                         if pattern.apply(&cell, &cell_type, &create, &mut replace)? {
                             change = true;
-                            break;
+                            break 'iter;
                         }
                     }
                 }
+            }
 
-                if change {
-                    break;
+            if !change {
+                break;
+            }
+
+            for (a, b) in replacements {
+                let a = netlist.replace_net_uses(a, &b)?;
+                let a = a.unwrap();
+                let n = a.outputs().count();
+                if n == 1 {
+                    cleaned.insert(a);
                 }
             }
 
-            if change {
-                for (a, b) in replacements {
-                    let a = netlist.replace_net_uses(a, &b)?;
-                    let a = a.unwrap();
-                    let n = a.outputs().count();
-                    if n == 1 {
-                        cleaned.insert(a);
-                    }
-                }
-            }
-
-            changing &= change;
             i += 1;
         }
 

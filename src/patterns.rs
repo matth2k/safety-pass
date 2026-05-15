@@ -5,6 +5,7 @@
 */
 
 use crate::{Cell, CellType, Create, Error, Pattern, Replace};
+use log::debug;
 use safety_net::NetRef;
 
 /// A * A = A
@@ -43,6 +44,7 @@ impl Pattern for Idempotent {
 
         let c = cell.get_output(0);
         replace(c, a)?;
+        debug!("Pattern applied!");
 
         Ok(true)
     }

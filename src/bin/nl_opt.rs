@@ -21,8 +21,12 @@ struct Args {
     no_xilinx: bool,
 
     /// Verify after every pass (not just the last)
-    #[arg(short = 'v', long, default_value_t = false)]
+    #[arg(long, default_value_t = false)]
     verify: bool,
+
+    /// Verbose logging
+    #[arg(short, long, default_value_t = false)]
+    verbose: bool,
 
     /// A list of passes to run in order
     #[arg(value_delimiter = ',', short = 'p', long, value_enum)]
@@ -70,7 +74,7 @@ fn sv_parse_wrapper(
 
 fn main() -> std::io::Result<()> {
     let args = Args::parse();
-    logger_init(false);
+    logger_init(args.verbose);
 
     if cfg!(debug_assertions) {
         warn!("Debug assertions are enabled");
