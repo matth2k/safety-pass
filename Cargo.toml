@@ -21,7 +21,6 @@ include = [
     "README.md",
     "src/**/*.rs",
     "tests/**/*.rs",
-    "examples/**/*.rs",
 ]
 
 keywords = [
