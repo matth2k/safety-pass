@@ -1,48 +1,6 @@
-[package]
-name = "safety-pass"
-version = "0.2.0"
-edition = "2024"
-license = "MIT OR Apache-2.0"
-
-categories = [
-    "data-structures",
-    "compilers",
-    "science",
+[workspace]
+resolver = "3"
+members = [
+    "nl_opt",
+    "safety-pass"
 ]
-
-description = "Compiler pass infrastructure for safety-net"
-documentation = "https://matth2k.github.io/safety-pass/"
-homepage = "https://matth2k.github.io/safety-pass/"
-include = [
-    "Cargo.toml",
-    "clippy.toml",
-    "LICENSE-MIT",
-    "LICENSE-APACHE",
-    "README.md",
-    "src/**/*.rs",
-    "tests/**/*.rs",
-]
-
-keywords = [
-    "data-structures",
-    "eda",
-    "netlist",
-    "circuits",
-    "hardware",
-]
-
-readme = "README.md"
-repository = "https://github.com/matth2k/safety-pass"
-
-[dependencies]
-safety-net = { version = "0.7.0" }
-nl-compiler = { version = "0.1.19" }
-sv-parser = { version = "0.13.4" }
-thiserror = { version = "2.0.16" }
-log = { version = "0.4.29" }
-clap = {version = "4.6.1", features = ["derive"] }
-simplelog = {version = "0.12.2" }
-
-[features]
-default = [ "graph" ]
-graph = [ "safety-net/graph" ]

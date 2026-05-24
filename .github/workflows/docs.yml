@@ -18,7 +18,7 @@ jobs:
       - name: Build (docs)
         run: cargo doc
       - name: Add redirect
-        run: echo '<meta http-equiv="refresh" content="0;url=safety_pass/index.html">' > target/doc/index.html
+        run: echo '<meta http-equiv="refresh" content="0;url=safety_pass/index.html">' > target/doc/safety_pass/index.html
       - name: Remove lock file
         run: rm -f target/doc/.lock
       - name: Upload artifact

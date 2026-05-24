@@ -432,6 +432,7 @@ impl Instantiable for Cell {
     }
 }
 
+#[cfg(feature = "id")]
 impl nl_compiler::FromId for Cell {
     fn from_id(s: &Identifier) -> Result<Self, safety_net::Error> {
         CellType::from_str(&s.to_string()).map(|ctype| Cell::new(ctype, None))
