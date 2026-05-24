@@ -160,13 +160,13 @@ impl<I: Instantiable> Pass for RenameNets<I> {
 }
 
 register_passes!(BasicPasses<Cell>;
-    /// A dummy pass that emits the Verilog of the netlist.
-    PrintVerilog<Cell>,
+    /// A pass that cleans the netlist.
+    Clean<Cell>,
     /// A pass that prints the dot graph of the netlist.
     #[cfg(feature = "graph")]
     DotGraph<Cell>,
-    /// A pass that cleans the netlist.
-    Clean<Cell>,
+    /// A dummy pass that emits the Verilog of the netlist.
+    PrintVerilog<Cell>,
     /// A pass that renames wires and instances sequentially __0__, __1__, ...
     RenameNets<Cell>,
 );
