@@ -5,7 +5,7 @@
 */
 
 use crate::{Cell, Pass};
-use safety_net::{Error, Netlist};
+use safety_net::{Error, Instantiable, Netlist};
 use std::fmt;
 use std::rc::Rc;
 
@@ -24,7 +24,7 @@ use std::rc::Rc;
 /// ```
 #[macro_export]
 macro_rules! register_passes {
-    ($e:ident < $i:ty > ; $($(#[$meta:meta])* $pass:ident),+ $(,)?) => {
+    ($e:ident < $i:ty > ; $($(#[$meta:meta])* $pass:ident $(:: <$pass_ty:ty>)?),+ $(,)?) => {
         /// Enum containing all registered passes for argument parsing.
         #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
         pub enum $e {
@@ -44,7 +44,7 @@ macro_rules! register_passes {
             /// Returns a boxed instance of the pass corresponding to this variant.
             pub fn get_pass(&self) -> Box<dyn Pass<I = $i>> {
                 match self {
-                    $(Self::$pass => Box::new($pass),)+
+                    $(Self::$pass => Box::new($pass $(::<$pass_ty>(std::marker::PhantomData::<$pass_ty>::default()))?),)+
                 }
             }
         }
@@ -52,17 +52,22 @@ macro_rules! register_passes {
 }
 
 /// A dummy pass that emits the Verilog of the netlist.
-#[derive(Debug)]
-pub struct PrintVerilog;
+pub struct PrintVerilog<I: Instantiable>(std::marker::PhantomData<I>);
 
-impl fmt::Display for PrintVerilog {
+impl<I: Instantiable> fmt::Display for PrintVerilog<I> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "PrintVerilog")
     }
 }
 
-impl Pass for PrintVerilog {
-    type I = Cell;
+impl<I: Instantiable> fmt::Debug for PrintVerilog<I> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "PrintVerilog")
+    }
+}
+
+impl<I: Instantiable> Pass for PrintVerilog<I> {
+    type I = I;
 
     fn run(&self, netlist: &Rc<Netlist<Self::I>>) -> Result<String, Error> {
         Ok(netlist.to_string())
@@ -135,7 +140,7 @@ impl Pass for RenameNets {
 
 register_passes!(BasicPasses <Cell>;
     /// A dummy pass that emits the Verilog of the netlist.
-    PrintVerilog,
+    PrintVerilog::<Cell>,
     /// A pass that prints the dot graph of the netlist.
     #[cfg(feature = "graph")]
     DotGraph,
