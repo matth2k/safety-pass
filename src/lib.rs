@@ -524,8 +524,8 @@ impl<I: Instantiable> Pipeline<I> {
                 Ok(output) => {
                     res = output;
                     if i != n - 1 {
-                        if verify {
-                            netlist.verify()?;
+                        if verify && let Err(e) = netlist.verify() {
+                            return Err(Error::PassError(pass.as_ref(), e));
                         }
                         info!("{pass}: {}", res);
                     }
@@ -589,6 +589,7 @@ impl<I: Instantiable> Folder<I> {
     pub fn fold(&self, netlist: &Rc<Netlist<I>>) -> Result<usize, Error<'_, I>> {
         let mut cleaned: HashSet<NetRef<I>> = HashSet::new();
         let mut i = 0;
+        let mut last_pat = None;
         let create = |t, i| netlist.insert_gate_disconnected(t, i);
 
         while i < self.max_iters {
@@ -607,6 +608,7 @@ impl<I: Instantiable> Folder<I> {
                 let ctype = cell.get_instance_type().map(|r| r.clone());
                 if let Some(cell_type) = ctype {
                     for pattern in &self.patterns {
+                        last_pat = Some(pattern.as_ref());
                         match pattern.apply(&cell, &cell_type, &create, &mut replace) {
                             Ok(true) => {
                                 change = true;
@@ -624,7 +626,11 @@ impl<I: Instantiable> Folder<I> {
             }
 
             for (a, b) in replacements {
-                let a = netlist.replace_net_uses(a, &b)?;
+                let a = match (netlist.replace_net_uses(a, &b), last_pat) {
+                    (Ok(a), _) => a,
+                    (Err(e), Some(p)) => return Err(Error::PatternError(p, e)),
+                    (Err(e), None) => return Err(e.into()),
+                };
                 cleaned.insert(a.unwrap());
             }
 
