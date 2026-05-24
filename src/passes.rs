@@ -4,8 +4,8 @@
 
 */
 
-use crate::{Cell, Error, Pass};
-use safety_net::Netlist;
+use crate::{Cell, Pass};
+use safety_net::{Error, Netlist};
 use std::fmt;
 use std::rc::Rc;
 
@@ -52,6 +52,7 @@ macro_rules! register_passes {
 }
 
 /// A dummy pass that emits the Verilog of the netlist.
+#[derive(Debug)]
 pub struct PrintVerilog;
 
 impl fmt::Display for PrintVerilog {
@@ -70,6 +71,7 @@ impl Pass for PrintVerilog {
 
 /// Print the dot graph of the netlist
 #[cfg(feature = "graph")]
+#[derive(Debug)]
 pub struct DotGraph;
 
 #[cfg(feature = "graph")]
@@ -84,11 +86,12 @@ impl Pass for DotGraph {
     type I = Cell;
 
     fn run(&self, netlist: &Rc<Netlist<Self::I>>) -> Result<String, Error> {
-        Ok(netlist.dot_string()?)
+        netlist.dot_string()
     }
 }
 
 /// Clean the netlist
+#[derive(Debug)]
 pub struct Clean;
 
 impl fmt::Display for Clean {
@@ -111,6 +114,7 @@ impl Pass for Clean {
 }
 
 /// Rename wires and instances sequentially __0__, __1__, ...
+#[derive(Debug)]
 pub struct RenameNets;
 
 impl fmt::Display for RenameNets {

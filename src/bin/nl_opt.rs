@@ -118,8 +118,8 @@ fn main() -> std::io::Result<()> {
     }
 
     let output = pipeline
-        .run(&f, args.verify)
-        .map_err(std::io::Error::other)?;
+        .execute(&f, args.verify)
+        .map_err(|e| std::io::Error::other(e.to_string()))?;
 
     println!("{output}");
 

@@ -4,12 +4,20 @@
 
 */
 
-use crate::{Cell, CellType, Create, Error, Pattern, Replace};
+use crate::{Cell, CellType, Create, Pattern, Replace};
 use log::debug;
-use safety_net::NetRef;
+use safety_net::{Error, NetRef};
+use std::fmt;
 
 /// A * A = A
+#[derive(Debug)]
 pub struct Idempotent;
+
+impl fmt::Display for Idempotent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "A * A = A")
+    }
+}
 
 impl Pattern for Idempotent {
     type I = Cell;
