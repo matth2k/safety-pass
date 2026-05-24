@@ -48,6 +48,7 @@ if __name__ == "__main__":
 
     whitelisted = set(args.whitelist)
     whitelisted.add("bin/main.rs")
+    whitelisted.add("src/main.rs")
     data = json.load(args.input)
     data = data["data"]
     percent = args.percent
