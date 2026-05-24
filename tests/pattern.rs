@@ -1,10 +1,5 @@
-use safety_net::Net;
-use safety_net::Netlist;
-use safety_pass::Cell;
-use safety_pass::CellType;
-use safety_pass::Folder;
-use safety_pass::Pass;
-use safety_pass::patterns::Idempotent;
+use safety_net::{Net, Netlist};
+use safety_pass::{Cell, CellType, Folder, Pass, patterns::Idempotent};
 use std::rc::Rc;
 
 fn and_gate() -> Cell {

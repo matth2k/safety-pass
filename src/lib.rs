@@ -515,6 +515,7 @@ impl<I: Instantiable> Pipeline<I> {
     }
 
     /// Execute the pipeline on a netlist. If `verify` is true, verify the netlist after each pass.
+    /// Returns the output of the last pass.
     pub fn execute(&self, netlist: &Rc<Netlist<I>>, verify: bool) -> Result<String, Error<'_, I>> {
         let mut res = String::new();
         let n = self.passes.len();
