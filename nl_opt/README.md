@@ -2,82 +2,81 @@
 [![Docs](https://img.shields.io/badge/docs-github--pages-blue)](https://matth2k.github.io/safety-pass/)
 [![crates.io](https://img.shields.io/badge/crates.io-github--pages-blue)](https://crates.io/crates/safety-pass)
 
-# Safety Pass: Compiler Pass and Pattern Rewriting for Circuits
+# `nl_opt`: Verilog Compiler Driver for Netlist Optimization Development
 
 ## Description
 
-A Rust library for orchestrating compiler pass pipelines on safety-net netlists.
-
-You can read the docs [here](https://matth2k.github.io/safety-pass/).
+This Verilog frontend tool can drive netlist optimizations on a pass-by-pass basis.
 
 ## Getting Started
 
-### Pattern-Based Rewriting
+Try running an `nl_opt` pattern on this example verilog:
 
-This crate allows for greedy, pattern-based rewriting of a netlist. Here is an example pattern that folds `A && A => A` and `A || A => A` (idempotence):
-
-```rust
-impl Pattern for Idempotent {
-    type I = Cell;
-
-    fn apply(
-        &self,
-        cell: &NetRef<Self::I>,
-        cell_type: &Self::I,
-        _create: &Create<Self::I>,
-        replace: &mut Replace<Self::I>,
-    ) -> Result<bool, Error> {
-        if !matches!(
-            cell_type.get_type(),
-            CellType::AND | CellType::AND2 | CellType::OR | CellType::OR2
-        ) {
-            return Ok(false);
-        }
-
-        let a = cell.get_input(0).get_driver();
-        let b = cell.get_input(1).get_driver();
-
-        if a.is_none() || b.is_none() {
-            return Ok(false);
-        }
-
-        let a = a.unwrap();
-        let b = b.unwrap();
-
-        if a != b {
-            return Ok(false);
-        }
-
-        let c = cell.get_output(0);
-        debug!("Pattern applied to cell {}!", c.as_net());
-        replace(c, a)?;
-
-        Ok(true)
-    }
-}
+```verilog
+module top (
+  a,
+  b,
+  y
+);
+  input a;
+  wire a;
+  input b;
+  wire b;
+  output y;
+  wire y;
+  wire inst_0_ZN;
+  wire inst_1_ZN;
+  AND2 inst_0 (
+    .A1(a),
+    .A2(b),
+    .ZN(inst_0_ZN)
+  );
+  AND2 inst_1 (
+    .A1(inst_0_ZN),
+    .A2(inst_0_ZN),
+    .ZN(inst_1_ZN)
+  );
+  assign y = inst_1_ZN;
+endmodule
 ```
 
-### Pass Pipelines
+Save it to `ex.v`
 
-You can also compose all your transformations (passes) into a pipeline and run it on multiple netlists:
+Then run `nl_opt ex.v --passes clean,print-verilog`
 
-```rust
-    let mut pipeline = Pipeline::default();
+## Help
 
-    // Make a greedy pattern folder
-    let mut folder = Folder::new(100);
-    folder.insert(safety_pass::patterns::Idempotent);
+```
+Netlist optimization debugging tool
 
-    // Add it to the pipeline
-    pipeline.insert(folder);
+Usage: nl_opt [OPTIONS] [INPUT]
 
-    for pass in args.passes {
-        pipeline.insert_dyn(pass.get_pass());
-    }
+Arguments:
+  [INPUT]
+          Verilog file to read from (or use stdin)
 
-    let output = pipeline
-        .execute(&netlist, false)
-        .map_err(|e| std::io::Error::other(e.to_string()))?;
+Options:
+  -x, --no-xilinx
+          Do not parse with Xilinx-specific port names
 
-    println!("{output}");
+      --verify
+          Verify after every pass (not just the last)
+
+  -v, --verbose
+          Verbose logging
+
+  -p, --passes <PASSES>
+          A list of passes to run in order
+
+          Possible values:
+          - print-verilog: A dummy pass that emits the Verilog of the netlist
+          - dot-graph:     A pass that prints the dot graph of the netlist
+          - clean:         A pass that cleans the netlist
+          - rename-nets:   A pass that renames wires and instances sequentially
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version
 ```
