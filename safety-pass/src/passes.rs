@@ -10,6 +10,11 @@ use std::fmt;
 use std::rc::Rc;
 
 /// Register passes in a wrapper enum for CLI arg parsing.
+/// *Passes which would like to be parameterized should define a tuple struct with a public PhantomData field.*
+///
+/// # See example:
+///
+/// - [`PrintVerilog`]
 ///
 /// # Example
 /// ```
@@ -18,13 +23,13 @@ use std::rc::Rc;
 /// use safety_pass::passes::PrintVerilog;
 /// // This defines a enum called `BasicPasses` with unit variants.
 /// // They operate on netlists containing `Cell` cells.
-/// register_passes!(BasicPasses <Cell>;
+/// register_passes!(BasicPasses<Cell>;
 ///   /// A dummy pass that emits the Verilog of the netlist.
-///   PrintVerilog);
+///   PrintVerilog<Cell>);
 /// ```
 #[macro_export]
 macro_rules! register_passes {
-    ($e:ident < $i:ty > ; $($(#[$meta:meta])* $pass:ident $(:: <$pass_ty:ty>)?),+ $(,)?) => {
+    ($e:ident < $i:ty > ; $($(#[$meta:meta])* $pass:ident $(<$pass_ty:ty>)?),+ $(,)?) => {
         /// Enum containing all registered passes for argument parsing.
         #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
         pub enum $e {
@@ -52,7 +57,7 @@ macro_rules! register_passes {
 }
 
 /// A dummy pass that emits the Verilog of the netlist.
-pub struct PrintVerilog<I: Instantiable>(std::marker::PhantomData<I>);
+pub struct PrintVerilog<I: Instantiable>(pub std::marker::PhantomData<I>);
 
 impl<I: Instantiable> fmt::Display for PrintVerilog<I> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -76,19 +81,25 @@ impl<I: Instantiable> Pass for PrintVerilog<I> {
 
 /// Print the dot graph of the netlist
 #[cfg(feature = "graph")]
-#[derive(Debug)]
-pub struct DotGraph;
+pub struct DotGraph<I: Instantiable>(pub std::marker::PhantomData<I>);
 
 #[cfg(feature = "graph")]
-impl fmt::Display for DotGraph {
+impl<I: Instantiable> fmt::Display for DotGraph<I> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "DotGraph")
     }
 }
 
 #[cfg(feature = "graph")]
-impl Pass for DotGraph {
-    type I = Cell;
+impl<I: Instantiable> fmt::Debug for DotGraph<I> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "DotGraph")
+    }
+}
+
+#[cfg(feature = "graph")]
+impl<I: Instantiable> Pass for DotGraph<I> {
+    type I = I;
 
     fn run(&self, netlist: &Rc<Netlist<Self::I>>) -> Result<String, Error> {
         netlist.dot_string()
@@ -96,17 +107,22 @@ impl Pass for DotGraph {
 }
 
 /// Clean the netlist
-#[derive(Debug)]
-pub struct Clean;
+pub struct Clean<I: Instantiable>(pub std::marker::PhantomData<I>);
 
-impl fmt::Display for Clean {
+impl<I: Instantiable> fmt::Display for Clean<I> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Clean")
     }
 }
 
-impl Pass for Clean {
-    type I = Cell;
+impl<I: Instantiable> fmt::Debug for Clean<I> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Clean")
+    }
+}
+
+impl<I: Instantiable> Pass for Clean<I> {
+    type I = I;
 
     fn run(&self, netlist: &Rc<Netlist<Self::I>>) -> Result<String, Error> {
         let cleaned = netlist.clean()?;
@@ -119,17 +135,22 @@ impl Pass for Clean {
 }
 
 /// Rename wires and instances sequentially __0__, __1__, ...
-#[derive(Debug)]
-pub struct RenameNets;
+pub struct RenameNets<I: Instantiable>(pub std::marker::PhantomData<I>);
 
-impl fmt::Display for RenameNets {
+impl<I: Instantiable> fmt::Display for RenameNets<I> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "RenameNets")
     }
 }
 
-impl Pass for RenameNets {
-    type I = Cell;
+impl<I: Instantiable> fmt::Debug for RenameNets<I> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "RenameNets")
+    }
+}
+
+impl<I: Instantiable> Pass for RenameNets<I> {
+    type I = I;
 
     fn run(&self, netlist: &Rc<Netlist<Self::I>>) -> Result<String, Error> {
         use safety_net::format_id;
@@ -138,14 +159,14 @@ impl Pass for RenameNets {
     }
 }
 
-register_passes!(BasicPasses <Cell>;
+register_passes!(BasicPasses<Cell>;
     /// A dummy pass that emits the Verilog of the netlist.
-    PrintVerilog::<Cell>,
+    PrintVerilog<Cell>,
     /// A pass that prints the dot graph of the netlist.
     #[cfg(feature = "graph")]
-    DotGraph,
+    DotGraph<Cell>,
     /// A pass that cleans the netlist.
-    Clean,
+    Clean<Cell>,
     /// A pass that renames wires and instances sequentially __0__, __1__, ...
-    RenameNets,
+    RenameNets<Cell>,
 );
