@@ -1,0 +1,6 @@
+[workspace]
+resolver = "3"
+members = [
+    "nl_opt",
+    "safety-pass"
+]
