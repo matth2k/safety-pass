@@ -98,7 +98,9 @@ impl<I: Instantiable> Pipeline<I> {
                 Err(e) => return Err(Error::PassError(pass.as_ref(), e)),
             }
         }
-        netlist.verify()?;
+        if verify {
+            netlist.verify()?;
+        }
         Ok(res)
     }
 }
@@ -152,7 +154,6 @@ impl<I: Instantiable> Folder<I> {
 
     /// Apply the patterns. Returns the number of iterations to find a fixed point.
     pub fn fold(&self, netlist: &Rc<Netlist<I>>) -> Result<usize, Error<'_, I>> {
-        let mut cleaned: HashSet<NetRef<I>> = HashSet::new();
         let mut i = 0;
         let mut last_pat = None;
         let create = |t, i| netlist.insert_gate_disconnected(t, i);
@@ -166,9 +167,6 @@ impl<I: Instantiable> Folder<I> {
 
             let mut change = false;
             'iter: for cell in netlist.objects() {
-                if cleaned.contains(&cell) {
-                    continue;
-                }
                 let ctype = cell.get_instance_type().map(|r| r.clone());
                 if let Some(cell_type) = ctype {
                     for pattern in &self.patterns {
@@ -190,19 +188,16 @@ impl<I: Instantiable> Folder<I> {
             }
 
             for (a, b) in replacements {
-                let a = match (netlist.replace_net_uses(a, &b), last_pat) {
-                    (Ok(a), _) => a,
+                match (netlist.replace_net_uses(a, &b), last_pat) {
+                    (Ok(_), _) => {}
                     (Err(e), Some(p)) => return Err(Error::PatternError(p, e)),
                     (Err(e), None) => return Err(e.into()),
-                };
-                cleaned.insert(a.unwrap());
+                }
             }
+            netlist.clean()?;
 
             i += 1;
         }
-
-        drop(cleaned);
-        netlist.clean()?;
 
         Ok(i)
     }

@@ -159,12 +159,49 @@ impl<I: Instantiable> Pass for RenameNets<I> {
     }
 }
 
+/// A pass that runs all built-in patterns to a fixed point.
+/// Applies patterns in order:
+/// ConstantFold, ConstantNandNor, DoubleNegation, Idempotent, MonotoneFold
+pub struct FoldPass;
+
+impl fmt::Display for FoldPass {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "FoldPass")
+    }
+}
+
+impl fmt::Debug for FoldPass {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "FoldPass")
+    }
+}
+
+impl Pass for FoldPass {
+    type I = Cell;
+
+    fn run(&self, netlist: &Rc<Netlist<Self::I>>) -> Result<String, Error> {
+        use crate::patterns::{
+            ConstantFold, ConstantNandNor, DoubleNegation, Idempotent, MonotoneFold,
+        };
+        let mut folder = crate::Folder::new(1000);
+        // Order matters — see lib.rs pattern ordering comment
+        folder.insert(ConstantFold);
+        folder.insert(ConstantNandNor);
+        folder.insert(DoubleNegation);
+        folder.insert(Idempotent);
+        folder.insert(MonotoneFold);
+        folder.run(netlist)
+    }
+}
+
 register_passes!(BasicPasses<Cell>;
     /// A pass that cleans the netlist.
     Clean<Cell>,
     /// A pass that prints the dot graph of the netlist.
     #[cfg(feature = "graph")]
     DotGraph<Cell>,
+    /// A pass that runs all built-in patterns to a fixed point.
+    FoldPass,
     /// A dummy pass that emits the Verilog of the netlist.
     PrintVerilog<Cell>,
     /// A pass that renames wires and instances sequentially __0__, __1__, ...
