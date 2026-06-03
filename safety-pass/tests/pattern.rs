@@ -1,6 +1,9 @@
 use safety_net::{Instantiable, Net, Netlist};
+use safety_pass::patterns::{
+    AndAbsorb, AndIdentity, DoubleNegation, Idempotent, MonotoneFold, NandAbsorb, NandIdentity,
+    NorAbsorb, NorIdentity, OrAbsorb, OrIdentity,
+};
 use safety_pass::{Cell, CellType, Folder, Pass};
-use safety_pass::patterns::{AndIdentity, OrIdentity, AndAbsorb, OrAbsorb, NandIdentity, NorIdentity, NandAbsorb, NorAbsorb, DoubleNegation, Idempotent, MonotoneFold};
 use std::rc::Rc;
 
 fn and_gate() -> Cell {
@@ -128,9 +131,7 @@ fn monotone_or_netlist() -> Rc<Netlist<Cell>> {
         .insert_gate(or_gate(), "inst_0".into(), &[a, b])
         .unwrap()
         .get_output(0);
-    let h = nl
-        .insert_gate(or_gate(), "inst_1".into(), &[g, c])
-        .unwrap();
+    let h = nl.insert_gate(or_gate(), "inst_1".into(), &[g, c]).unwrap();
     h.expose_with_name("y".into());
     nl
 }

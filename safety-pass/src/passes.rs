@@ -182,8 +182,8 @@ impl Pass for FoldAllPatternsPass {
 
     fn run(&self, netlist: &Rc<Netlist<Self::I>>) -> Result<String, Error> {
         use crate::patterns::{
-            AndIdentity, OrIdentity, AndAbsorb, OrAbsorb, NandIdentity, NorIdentity, NandAbsorb, NorAbsorb, 
-            DoubleNegation, Idempotent, MonotoneFold,
+            AndAbsorb, AndIdentity, DoubleNegation, Idempotent, MonotoneFold, NandAbsorb,
+            NandIdentity, NorAbsorb, NorIdentity, OrAbsorb, OrIdentity,
         };
         let mut folder = crate::Folder::new(1000);
         folder.insert(AndIdentity);
@@ -191,7 +191,7 @@ impl Pass for FoldAllPatternsPass {
         folder.insert(NandIdentity);
         folder.insert(NorIdentity);
         folder.insert(AndAbsorb);
-        folder.insert(OrAbsorb);        
+        folder.insert(OrAbsorb);
         folder.insert(NandAbsorb);
         folder.insert(NorAbsorb);
         folder.insert(DoubleNegation);

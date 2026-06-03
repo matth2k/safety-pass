@@ -6,7 +6,7 @@
 
 use crate::{Cell, CellType, Create, Pattern, Replace};
 use log::debug;
-use safety_net::{Error, NetRef, DrivenNet, Instantiable};
+use safety_net::{DrivenNet, Error, Instantiable, NetRef};
 use std::fmt;
 
 /// A * A = A
@@ -58,7 +58,6 @@ impl Pattern for Idempotent {
     }
 }
 
-
 /// Folds monotone AND/OR gate trees (nested homogeneous gates) into a single equivalent (wider) gate.
 /// The fold applies to all AND or all OR gates until final total fan-in = 4 (max-sized gate, i.e. AND4)
 /// This allows collapsing arbitrary balanced or unbalanced trees of AND/OR gates into a single wider gate.
@@ -86,11 +85,11 @@ impl MonotoneFold {
             fanin += child.get_num_inputs();
         }
         match (andg, fanin) {
-            (true,  2) => Some(CellType::AND2),
+            (true, 2) => Some(CellType::AND2),
             (false, 2) => Some(CellType::OR2),
-            (true,  3) => Some(CellType::AND3),
+            (true, 3) => Some(CellType::AND3),
             (false, 3) => Some(CellType::OR3),
-            (true,  4) => Some(CellType::AND4),
+            (true, 4) => Some(CellType::AND4),
             (false, 4) => Some(CellType::OR4),
             _ => None,
         }
@@ -131,8 +130,7 @@ impl Pattern for MonotoneFold {
 
             match child_ctype {
                 Some(ct)
-                    if (ct.is_and() && root_type.is_and())
-                    || (ct.is_or() && root_type.is_or()) =>
+                    if (ct.is_and() && root_type.is_and()) || (ct.is_or() && root_type.is_or()) =>
                 {
                     child_drivers.push((i, driver_ref, ct));
                 }
@@ -148,7 +146,7 @@ impl Pattern for MonotoneFold {
 
         let child_types: Vec<CellType> = child_drivers.iter().map(|(_, _, ct)| *ct).collect();
 
-        let new_type = match Self::can_combine(root_type, &child_types, non_child_drivers.len(),) {
+        let new_type = match Self::can_combine(root_type, &child_types, non_child_drivers.len()) {
             Some(t) => t,
             None => return Ok(false),
         };
@@ -158,13 +156,19 @@ impl Pattern for MonotoneFold {
 
         let mut port_idx = 0;
         for (_, child_ref, _) in &child_drivers {
-            let child_num_inputs = child_ref.get_instance_type().unwrap().get_type().get_num_inputs();
+            let child_num_inputs = child_ref
+                .get_instance_type()
+                .unwrap()
+                .get_type()
+                .get_num_inputs();
             for j in 0..child_num_inputs {
                 let grandchild_driver = child_ref.get_input(j).get_driver();
                 if grandchild_driver.is_none() {
                     return Ok(false);
                 }
-                new_gate.get_input(port_idx).connect(grandchild_driver.unwrap());
+                new_gate
+                    .get_input(port_idx)
+                    .connect(grandchild_driver.unwrap());
                 port_idx += 1;
             }
         }
@@ -184,14 +188,13 @@ impl Pattern for MonotoneFold {
     }
 }
 
+type ConstInputs = Option<(Option<usize>, Option<usize>, Option<DrivenNet<Cell>>)>;
+
 /// Scans the inputs of a 2-input gate and returns which slots hold a
 /// constant-false driver, a constant-true driver, and the non-constant driver.
 /// Returns `None` if any input is undriven (pattern cannot fire).
 /// Helper to [AndAbsorb], [OrAbsorb], [AndIdentity], and [OrIdentity]
-fn search_constant_inputs(
-    cell: &NetRef<Cell>,
-    ct: &CellType,
-) -> Option<(Option<usize>, Option<usize>, Option<DrivenNet<Cell>>)> {
+fn search_constant_inputs(cell: &NetRef<Cell>, ct: &CellType) -> ConstInputs {
     let num_inputs = ct.get_num_inputs();
     let mut const_false: Option<usize> = None;
     let mut const_true: Option<usize> = None;
@@ -204,9 +207,15 @@ fn search_constant_inputs(
             .get_instance_type()
             .and_then(|t| t.get_constant())
         {
-            Some(safety_net::Logic::False) => { const_false = Some(i); }
-            Some(safety_net::Logic::True)  => { const_true = Some(i); }
-            _                              => { other = Some(driver); }
+            Some(safety_net::Logic::False) => {
+                const_false = Some(i);
+            }
+            Some(safety_net::Logic::True) => {
+                const_true = Some(i);
+            }
+            _ => {
+                other = Some(driver);
+            }
         }
     }
 
@@ -409,17 +418,20 @@ impl Pattern for DoubleNegation {
     }
 }
 
+type DrivenConstInputs = Option<(
+    Option<DrivenNet<Cell>>,
+    Option<DrivenNet<Cell>>,
+    Option<DrivenNet<Cell>>,
+)>;
+
 /// Scans the inputs of a 2-input gate. Returns `None` if any input is undriven.
 /// Slots hold the full driver so absorb patterns can forward the constant cell's
 /// output directly; the non-constant input is stored in `other`.
-fn search_driven_inputs(
-    cell: &NetRef<Cell>,
-    ct: &CellType,
-) -> Option<(Option<DrivenNet<Cell>>, Option<DrivenNet<Cell>>, Option<DrivenNet<Cell>>)> {
+fn search_driven_inputs(cell: &NetRef<Cell>, ct: &CellType) -> DrivenConstInputs {
     let num_inputs = ct.get_num_inputs();
     let mut const_false: Option<DrivenNet<Cell>> = None;
-    let mut const_true:  Option<DrivenNet<Cell>> = None;
-    let mut other:       Option<DrivenNet<Cell>> = None;
+    let mut const_true: Option<DrivenNet<Cell>> = None;
+    let mut other: Option<DrivenNet<Cell>> = None;
 
     for i in 0..num_inputs {
         let driver = cell.get_input(i).get_driver()?;
@@ -428,9 +440,15 @@ fn search_driven_inputs(
             .get_instance_type()
             .and_then(|t| t.get_constant())
         {
-            Some(safety_net::Logic::False) => { const_false = Some(driver); }
-            Some(safety_net::Logic::True)  => { const_true  = Some(driver); }
-            _                              => { other = Some(driver); }
+            Some(safety_net::Logic::False) => {
+                const_false = Some(driver);
+            }
+            Some(safety_net::Logic::True) => {
+                const_true = Some(driver);
+            }
+            _ => {
+                other = Some(driver);
+            }
         }
     }
 
