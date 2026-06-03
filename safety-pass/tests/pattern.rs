@@ -422,7 +422,7 @@ fn test_monotone_no_fold_shared_child() {
 fn test_constant_fold_and0() {
     // AND(a, 0) = 0
     // before: 3 objects (a, gnd, inst_0)
-    // after:  2 objects (a, gnd) — inst_0 cleaned, output rewired to gnd
+    // after:  2 objects (a, gnd) inst_0 cleaned, output rewired to gnd
     let nl = and_const0_netlist();
     let mut folder = Folder::<Cell>::new(101);
     folder.insert(AndAbsorb);
@@ -445,7 +445,7 @@ fn test_constant_fold_and0() {
 fn test_constant_fold_and1() {
     // AND(a, 1) = a
     // before: 3 objects (a, vcc, inst_0)
-    // after:  2 objects (a, vcc) — inst_0 cleaned, output rewired to a
+    // after:  2 objects (a, vcc) inst_0 cleaned, output rewired to a
     let nl = and_const1_netlist();
     let mut folder = Folder::<Cell>::new(101);
     folder.insert(AndIdentity);
@@ -500,7 +500,7 @@ fn test_constant_fold_or0() {
 fn test_double_negation_inv() {
     // INV(INV(a)) = a
     // before: 3 objects (a, inv1, inv2)
-    // after:  1 object  (a) — both inverters cleaned
+    // after:  1 object  (a) both inverters cleaned
     let nl = double_neg_netlist();
     let mut folder = Folder::<Cell>::new(101);
     folder.insert(DoubleNegation);
@@ -546,7 +546,7 @@ fn test_double_negation_no_fire_single() {
 
 #[test]
 fn test_nand_const0() {
-    // NAND(a, 0) = 1 — output rewired to new VCC
+    // NAND(a, 0) = 1 output rewired to new VCC
     let nl = nand_const0_netlist();
     let mut folder = Folder::<Cell>::new(101);
     folder.insert(NandAbsorb);
@@ -563,7 +563,7 @@ fn test_nand_const0() {
 
 #[test]
 fn test_nand_const1() {
-    // NAND(a, 1) = NOT(a) — output rewired to new INV
+    // NAND(a, 1) = NOT(a) output rewired to new INV
     let nl = nand_const1_netlist();
     let mut folder = Folder::<Cell>::new(101);
     folder.insert(NandIdentity);
@@ -580,7 +580,7 @@ fn test_nand_const1() {
 
 #[test]
 fn test_nor_const1() {
-    // NOR(a, 1) = 0 — output rewired to new GND
+    // NOR(a, 1) = 0 output rewired to new GND
     let nl = nor_const1_netlist();
     let mut folder = Folder::<Cell>::new(101);
     folder.insert(NorAbsorb);
@@ -597,7 +597,7 @@ fn test_nor_const1() {
 
 #[test]
 fn test_nor_const0() {
-    // NOR(a, 0) = NOT(a) — output rewired to new INV
+    // NOR(a, 0) = NOT(a) output rewired to new INV
     let nl = nor_const0_netlist();
     let mut folder = Folder::<Cell>::new(101);
     folder.insert(NorIdentity);
