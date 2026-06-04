@@ -171,9 +171,9 @@ impl Pattern for MonotoneFold {
             return Ok(false);
         }
 
-        let new_type = match Self::can_combine(root_type, &child_types, non_child_drivers.len()) {
-            Some(t) => t,
-            None => return Ok(false),
+        let Some(new_type) = Self::can_combine(root_type, &child_types, non_child_drivers.len())
+        else {
+            return Ok(false);
         };
 
         let new_inst_name = cell.get_instance_name().unwrap() + "_folded".into();

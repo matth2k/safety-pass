@@ -169,6 +169,7 @@ impl<I: Instantiable> Folder<I> {
                 if cleaned.contains(&cell) {
                     continue;
                 }
+                
                 let ctype = cell.get_instance_type().map(|r| r.clone());
                 if let Some(cell_type) = ctype {
                     for pattern in &self.patterns {
