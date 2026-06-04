@@ -159,12 +159,51 @@ impl<I: Instantiable> Pass for RenameNets<I> {
     }
 }
 
+/// A pass that runs all patterns to a covergence.
+/// Checks patterns in insertion order
+/// AndIdentity, OrIdentity, AndAbsorb, OrAbsorb, NandIdentity, NorIdentity, NandAbsorb, NorAbsorb,
+/// DoubleNegation, Idempotent, MonotoneFold
+#[derive(Debug)]
+pub struct FoldAllPatterns;
+
+impl fmt::Display for FoldAllPatterns {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "FoldAllPatterns")
+    }
+}
+
+impl Pass for FoldAllPatterns {
+    type I = Cell;
+
+    fn run(&self, netlist: &Rc<Netlist<Self::I>>) -> Result<String, Error> {
+        use crate::patterns::{
+            AndAbsorb, AndIdentity, DoubleNegation, Idempotent, MonotoneFold, NandAbsorb,
+            NandIdentity, NorAbsorb, NorIdentity, OrAbsorb, OrIdentity,
+        };
+        let mut folder = crate::Folder::new(1000);
+        folder.insert(AndIdentity);
+        folder.insert(OrIdentity);
+        folder.insert(NandIdentity);
+        folder.insert(NorIdentity);
+        folder.insert(AndAbsorb);
+        folder.insert(OrAbsorb);
+        folder.insert(NandAbsorb);
+        folder.insert(NorAbsorb);
+        folder.insert(DoubleNegation);
+        folder.insert(Idempotent);
+        folder.insert(MonotoneFold);
+        folder.run(netlist)
+    }
+}
+
 register_passes!(BasicPasses<Cell>;
     /// A pass that cleans the netlist.
     Clean<Cell>,
     /// A pass that prints the dot graph of the netlist.
     #[cfg(feature = "graph")]
     DotGraph<Cell>,
+    /// A pass that runs all built-in patterns to a fixed point.
+    FoldAllPatterns,
     /// A dummy pass that emits the Verilog of the netlist.
     PrintVerilog<Cell>,
     /// A pass that renames wires and instances sequentially __0__, __1__, ...
