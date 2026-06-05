@@ -180,7 +180,7 @@ impl Pass for FoldAllPatterns {
             AndAbsorb, AndIdentity, DoubleNegation, Idempotent, MonotoneFold, NandAbsorb,
             NandIdentity, NorAbsorb, NorIdentity, OrAbsorb, OrIdentity,
         };
-        let mut folder = crate::Folder::new(1000);
+        let mut folder = crate::Folder::new(100000);
         folder.insert(AndIdentity);
         folder.insert(OrIdentity);
         folder.insert(NandIdentity);
@@ -196,6 +196,64 @@ impl Pass for FoldAllPatterns {
     }
 }
 
+/// Insert a pair of inverters at every point in the netlist.
+#[derive(Debug)]
+pub struct InsertInv;
+
+impl fmt::Display for InsertInv {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "InsertInv")
+    }
+}
+
+impl Pass for InsertInv {
+    type I = Cell;
+    fn run(&self, netlist: &Rc<Netlist<Self::I>>) -> Result<String, Error> {
+        use crate::CellType;
+        let mut everything = Vec::new();
+
+        for node in netlist.objects() {
+            for output in node.outputs() {
+                everything.push(output);
+            }
+        }
+
+        // n increases with every run of InsertInv, ensuring the net names are unique.
+        let n = everything.len();
+
+        // We use i to differentiate between nets that have the same base identifer.
+        for (i, net) in everything.into_iter().enumerate() {
+            // Combine the net's base name (n) and i to to create unique instance names
+            // across both repeated runs of this pass and nets with identical base names.
+            let inst_name = net.as_net().get_identifier().clone()
+                + "_inv".into()
+                + n.to_string().into()
+                + i.to_string().into();
+
+            let inv_type = match net.get_instance_type() {
+                Some(t) => t.new_like(CellType::INV),
+                _ => Cell::new(CellType::INV, None),
+            };
+
+            let net_inv = netlist.insert_gate_disconnected(inv_type.clone(), inst_name.clone());
+
+            // Repeat the pattern for the second inverter
+            let inst_name = inst_name + "inv".into() + n.to_string().into() + i.to_string().into();
+            let net_inv_inv =
+                netlist.insert_gate(inv_type.clone(), inst_name, &[net_inv.clone().into()])?;
+
+            // Replace the uses of the original net
+            let replacement = net_inv_inv.get_output(0);
+            let disconnected = netlist.replace_net_uses(net, &replacement)?;
+
+            // Now take our disconnected net and drive the inverter pair
+            net_inv.get_input(0).connect(disconnected);
+        }
+
+        Ok(format!("Inserted {} pairs of inverters", n))
+    }
+}
+
 register_passes!(BasicPasses<Cell>;
     /// A pass that cleans the netlist.
     Clean<Cell>,
@@ -204,6 +262,8 @@ register_passes!(BasicPasses<Cell>;
     DotGraph<Cell>,
     /// A pass that runs all built-in patterns to a fixed point.
     FoldAllPatterns,
+    /// Insert a pair of inverters at every point in the netlist.
+    InsertInv,
     /// A dummy pass that emits the Verilog of the netlist.
     PrintVerilog<Cell>,
     /// A pass that renames wires and instances sequentially __0__, __1__, ...
