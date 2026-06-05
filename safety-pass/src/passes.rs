@@ -254,6 +254,61 @@ impl Pass for InsertInv {
     }
 }
 
+/// A pass that remaps cells according to some arbitrary cell mapping function.
+pub struct RemapCells<I: Instantiable> {
+    map: Box<dyn Fn(&I) -> Option<I>>,
+}
+
+impl<I: Instantiable> fmt::Display for RemapCells<I> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "RemapCells")
+    }
+}
+
+impl<I: Instantiable> fmt::Debug for RemapCells<I> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "RemapCells")
+    }
+}
+
+impl<I: Instantiable> Default for RemapCells<I> {
+    fn default() -> Self {
+        Self {
+            map: Box::new(|_| None),
+        }
+    }
+}
+
+impl<I: Instantiable> Pass for RemapCells<I> {
+    type I = I;
+
+    fn run(&self, netlist: &Rc<Netlist<Self::I>>) -> Result<String, Error> {
+        let mut remapped = 0;
+        for node in netlist.objects() {
+            if let Some(mut inst_type) = node.get_instance_type_mut() {
+                let Some(remap) = (self.map)(&inst_type) else {
+                    continue;
+                };
+                *inst_type = remap;
+                remapped += 1;
+            }
+        }
+        Ok(format!("Remapped {} cells", remapped))
+    }
+}
+
+impl<I: Instantiable> RemapCells<I> {
+    /// Create a new pass for remapping cells with a boxed function.
+    pub fn new_boxed(map: Box<dyn Fn(&I) -> Option<I>>) -> Self {
+        Self { map }
+    }
+
+    /// Create a new pass for remapping cells.
+    pub fn new<F: Fn(&I) -> Option<I> + 'static>(map: F) -> Self {
+        Self { map: Box::new(map) }
+    }
+}
+
 register_passes!(BasicPasses<Cell>;
     /// A pass that cleans the netlist.
     Clean<Cell>,
