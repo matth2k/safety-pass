@@ -254,6 +254,7 @@ impl Pass for InsertInv {
     }
 }
 
+/// Returns `Some(I)` if the cell should be replaced with something else
 type Remap<I> = dyn Fn(&I) -> Option<I> + 'static;
 
 /// A pass that remaps cells according to some arbitrary cell mapping function.
