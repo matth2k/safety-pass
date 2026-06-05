@@ -6,7 +6,7 @@ Compiler pass infrastructure for safety-net
 
 */
 
-use log::info;
+use log::{info, warn};
 use safety_net::{DrivenNet, Identifier, Instantiable, NetRef, Netlist};
 use std::{collections::HashSet, fmt, rc::Rc};
 use thiserror::Error;
@@ -179,7 +179,12 @@ impl<I: Instantiable> Folder<I> {
                                 change = true;
                                 break 'iter;
                             }
-                            Err(e) => return Err(Error::PatternError(pattern.as_ref(), e)),
+                            Err(e) => {
+                                warn!(
+                                    "Pattern {pattern} encountered an error mid-application on cell {cell}"
+                                );
+                                return Err(Error::PatternError(pattern.as_ref(), e));
+                            }
                             _ => (),
                         }
                     }
@@ -193,7 +198,10 @@ impl<I: Instantiable> Folder<I> {
             for (a, b) in replacements {
                 let a = match (netlist.replace_net_uses(a, &b), last_pat) {
                     (Ok(a), _) => a,
-                    (Err(e), Some(p)) => return Err(Error::PatternError(p, e)),
+                    (Err(e), Some(p)) => {
+                        warn!("Pattern {p} failed to apply (replaced with {b})");
+                        return Err(Error::PatternError(p, e));
+                    }
                     (Err(e), None) => return Err(e.into()),
                 };
                 cleaned.insert(a.unwrap());
