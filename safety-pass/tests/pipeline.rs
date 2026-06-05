@@ -1,4 +1,4 @@
-use safety_net::{Net, Netlist};
+use safety_net::{Net, Netlist, assert_verilog_eq};
 use safety_pass::{Cell, CellType, Folder, Pipeline, patterns::Idempotent};
 use std::rc::Rc;
 
@@ -42,4 +42,24 @@ fn test_pipeline() {
     assert_eq!(after + 1, before);
 
     assert_eq!(res.unwrap(), "Folded 1 patterns over 1 iterations");
+}
+
+#[test]
+fn test_folder_debug() {
+    use safety_pass::patterns::{DoubleNegation, Idempotent};
+    let mut folder = Folder::new(101);
+    folder.insert(DoubleNegation);
+    folder.insert(Idempotent);
+
+    let debug_str = format!("{folder:#?}");
+    assert_verilog_eq!(
+        debug_str,
+        "Folder {
+            patterns: [
+                DoubleNegation,
+                Idempotent,
+            ],
+            max_iters: 101,
+        }"
+    );
 }
