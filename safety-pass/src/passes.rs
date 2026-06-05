@@ -254,9 +254,11 @@ impl Pass for InsertInv {
     }
 }
 
+type Remap<I> = dyn Fn(&I) -> Option<I> + 'static;
+
 /// A pass that remaps cells according to some arbitrary cell mapping function.
 pub struct RemapCells<I: Instantiable> {
-    map: Box<dyn Fn(&I) -> Option<I>>,
+    map: Box<Remap<I>>,
 }
 
 impl<I: Instantiable> fmt::Display for RemapCells<I> {
@@ -299,7 +301,7 @@ impl<I: Instantiable> Pass for RemapCells<I> {
 
 impl<I: Instantiable> RemapCells<I> {
     /// Create a new pass for remapping cells with a boxed function.
-    pub fn new_boxed(map: Box<dyn Fn(&I) -> Option<I>>) -> Self {
+    pub fn new_boxed(map: Box<Remap<I>>) -> Self {
         Self { map }
     }
 
