@@ -5,7 +5,7 @@
 */
 
 use crate::{Cell, Pass};
-use safety_net::{Error, Instantiable, Netlist, format_id};
+use safety_net::{Error, Instantiable, Netlist, format_id, rewriter::NetMapper};
 use std::fmt;
 use std::rc::Rc;
 
@@ -218,14 +218,15 @@ impl Pass for InsertInv {
             }
         }
 
-        // n increases with every run of InsertInv, ensuring the net names are unique.
         let n = everything.len();
+
+        let mut mapper = NetMapper::new(netlist)?;
 
         // We use i to differentiate between nets that have the same base identifer.
         for (i, net) in everything.into_iter().enumerate() {
             // Combine the net's base name (n) and i to to create unique instance names
             // across both repeated runs of this pass and nets with identical base names.
-            let inst_name = net.as_net().get_identifier().clone() + format_id!("_{n}_{i}");
+            let inst_name = net.as_net().get_identifier().clone() + format_id!("_{i}_{n}");
 
             let inv_type = match net.get_instance_type() {
                 Some(t) => t.new_like(CellType::INV),
@@ -241,11 +242,13 @@ impl Pass for InsertInv {
 
             // Replace the uses of the original net
             let replacement = net_inv_inv.get_output(0);
-            let disconnected = netlist.replace_net_uses(net, &replacement)?;
+            let disconnected = mapper.replace(net, replacement);
 
             // Now take our disconnected net and drive the inverter pair
             net_inv.get_input(0).connect(disconnected);
         }
+
+        mapper.apply()?;
 
         Ok(format!("Inserted {} pairs of inverters", n))
     }
