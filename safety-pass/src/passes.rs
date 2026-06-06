@@ -5,7 +5,7 @@
 */
 
 use crate::{Cell, Pass};
-use safety_net::{Error, Instantiable, Netlist};
+use safety_net::{Error, Instantiable, Netlist, format_id};
 use std::fmt;
 use std::rc::Rc;
 
@@ -225,10 +225,7 @@ impl Pass for InsertInv {
         for (i, net) in everything.into_iter().enumerate() {
             // Combine the net's base name (n) and i to to create unique instance names
             // across both repeated runs of this pass and nets with identical base names.
-            let inst_name = net.as_net().get_identifier().clone()
-                + "_inv".into()
-                + n.to_string().into()
-                + i.to_string().into();
+            let inst_name = net.as_net().get_identifier().clone() + format_id!("_{n}_{i}");
 
             let inv_type = match net.get_instance_type() {
                 Some(t) => t.new_like(CellType::INV),
@@ -238,7 +235,7 @@ impl Pass for InsertInv {
             let net_inv = netlist.insert_gate_disconnected(inv_type.clone(), inst_name.clone());
 
             // Repeat the pattern for the second inverter
-            let inst_name = inst_name + "inv".into() + n.to_string().into() + i.to_string().into();
+            let inst_name = inst_name + "inv".into();
             let net_inv_inv =
                 netlist.insert_gate(inv_type.clone(), inst_name, &[net_inv.clone().into()])?;
 
