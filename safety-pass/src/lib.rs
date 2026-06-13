@@ -84,7 +84,7 @@ impl<I: Instantiable> Pipeline<I> {
         let mut res = String::new();
         let n = self.passes.len();
         for (i, pass) in self.passes.iter().enumerate() {
-            info!("Running pass {i} ({pass})...");
+            info!("[Pass {i}] {pass}");
             match pass.run(netlist) {
                 Ok(output) => {
                     res = output;
@@ -92,7 +92,9 @@ impl<I: Instantiable> Pipeline<I> {
                         if verify && let Err(e) = netlist.verify() {
                             return Err(Error::PassError(pass.as_ref(), e));
                         }
-                        info!("{pass}: {}", res);
+                        for line in res.lines() {
+                            info!("[{pass}] {line}");
+                        }
                     }
                 }
                 Err(e) => return Err(Error::PassError(pass.as_ref(), e)),

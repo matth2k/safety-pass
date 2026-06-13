@@ -5,7 +5,8 @@
 */
 
 use crate::{Cell, Pass};
-use safety_net::{Error, Instantiable, Netlist, format_id, rewriter::NetMapper};
+use safety_net::{Error, Identifier, Instantiable, Netlist, format_id, rewriter::NetMapper};
+use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
 
@@ -156,6 +157,45 @@ impl<I: Instantiable> Pass for RenameNets<I> {
         use safety_net::format_id;
         netlist.rename_nets(|_, i| format_id!("__{i}__"))?;
         Ok(format!("Renamed {} cells", netlist.len()))
+    }
+}
+
+/// Prints stats on all the cell types in the netlist.
+pub struct CellStats<I: Instantiable>(pub std::marker::PhantomData<I>);
+
+impl<I: Instantiable> fmt::Display for CellStats<I> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "CellStats")
+    }
+}
+
+impl<I: Instantiable> fmt::Debug for CellStats<I> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "CellStats")
+    }
+}
+
+impl<I: Instantiable> Pass for CellStats<I> {
+    type I = I;
+
+    fn run(&self, netlist: &Rc<Netlist<Self::I>>) -> Result<String, Error> {
+        let mut map: HashMap<Identifier, usize> = HashMap::new();
+        for node in netlist.objects() {
+            if let Some(inst_type) = node.get_instance_type() {
+                *map.entry(inst_type.get_name().clone()).or_insert(0) += 1;
+            }
+        }
+        let mut pairs: Vec<(Identifier, usize)> = map.into_iter().collect();
+        pairs.sort_by_key(|a| a.1);
+
+        let mut res = String::new();
+        let mut total = 0;
+        for (cell, count) in pairs.into_iter().rev() {
+            res += &format!("\t{}:\t\t{}\n", cell, count);
+            total += count;
+        }
+        res += &format!("\n\tTotal:\t\t{}\n", total);
+        Ok(format!("Cell Usage:\n{res}"))
     }
 }
 
@@ -313,6 +353,8 @@ impl<I: Instantiable> RemapCells<I> {
 }
 
 register_passes!(BasicPasses<Cell>;
+    /// Prints stats on all the cell types in the netlist.
+    CellStats<Cell>,
     /// A pass that cleans the netlist.
     Clean<Cell>,
     /// A pass that prints the dot graph of the netlist.
