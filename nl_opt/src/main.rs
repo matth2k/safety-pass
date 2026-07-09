@@ -34,7 +34,7 @@ struct Args {
 }
 
 fn xilinx_overrides(id: &Identifier, cell: &Cell) -> Option<Cell> {
-    if id.get_name() == "INV" {
+    if id.to_string() == "INV" {
         Some(
             cell.clone()
                 .remap_input(0, "I".into())
