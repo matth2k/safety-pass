@@ -261,9 +261,9 @@ checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
 
 [[package]]
 name = "nl-compiler"
-version = "0.1.27"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03f16de685fe2091e0c69915621b35dbcca7f839e2529b31d9e4de89effc11cc"
+checksum = "6847ece6b3543fc63b4ee103c89cf6653dbc26922f9d80b6c44eedda9cfa4dfd"
 dependencies = [
  "flussab",
  "flussab-aiger",
@@ -274,7 +274,7 @@ dependencies = [
 
 [[package]]
 name = "nl_opt"
-version = "0.3.4"
+version = "0.3.5"
 dependencies = [
  "clap",
  "log",
@@ -491,7 +491,7 @@ dependencies = [
 
 [[package]]
 name = "safety-pass"
-version = "0.4.6"
+version = "0.4.7"
 dependencies = [
  "clap",
  "log",
