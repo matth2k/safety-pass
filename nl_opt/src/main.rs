@@ -1,8 +1,8 @@
 use clap::Parser;
 use log::{error, info, warn};
 use nl_compiler::{from_vast, from_vast_overrides};
+use nl_opt::OptPasses;
 use safety_net::Identifier;
-use safety_pass::passes::BasicPasses;
 use safety_pass::{Cell, Pipeline};
 use simplelog::{ColorChoice, ConfigBuilder, TermLogger, TerminalMode};
 use std::collections::HashMap;
@@ -30,7 +30,7 @@ struct Args {
 
     /// A list of passes to run in order
     #[arg(value_delimiter = ',', short = 'p', long, value_enum)]
-    passes: Vec<BasicPasses>,
+    passes: Vec<OptPasses>,
 }
 
 fn xilinx_overrides(id: &Identifier, cell: &Cell) -> Option<Cell> {
