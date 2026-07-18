@@ -14,39 +14,38 @@ pub enum Node {
 
 /// Topologically sorted vector of nodes, represents a logic function
 pub struct LogicEqn {
-
     nodes: Vec<Node>,
 }
 
 impl LogicEqn {
     /// Creates a new, empty logic equation
-    pub fn new() -> LogicEqn { 
-        LogicEqn{
-            nodes: Vec::new() // Default constructor
+    pub fn new() -> LogicEqn {
+        LogicEqn {
+            nodes: Vec::new(), // Default constructor
         }
     }
     /// Returns a reference to the internal node list
-    pub fn nodes(&self) -> &Vec<Node> { 
+    pub fn nodes(&self) -> &Vec<Node> {
         &self.nodes
     }
 
     /// Adds a node to the end of the list and  returns the index.
     pub fn push(&mut self, node: Node) -> usize {
-         // TODO; add a check for validty of nodes being inserted
+        // TODO; add a check for validty of nodes being inserted
         self.nodes.push(node);
         self.nodes.len() - 1
     }
 
     /// Adds a named input node, returns the index
-    pub fn input(&mut self, name: &str) ->usize {
-        self.push(Node::Input(name.to_string() ))
+    pub fn input(&mut self, name: &str) -> usize {
+        self.push(Node::Input(name.to_string()))
     }
 
     /// Adds an AND node between two previous indicies (a, b) and returns the index of the AND node
     pub fn and(&mut self, a: usize, b: usize) -> usize {
         self.push(Node::And(a, b))
     }
-    /// Adds an INV node of a previous index(a), and returns the index of the INV node 
+    /// Adds an INV node of a previous index(a), and returns the index of the INV node
     pub fn inv(&mut self, a: usize) -> usize {
         self.push(Node::Inv(a))
     }
@@ -69,7 +68,7 @@ impl LogicEqn {
         }
         return names;
     }
-    }
+}
 
 // Builds a logic equation from a list of nodes
 impl From<Vec<Node>> for LogicEqn {
@@ -125,7 +124,7 @@ impl fmt::Display for LogicEqn {
                 let slot_a = net_name(self, j);
                 let input_a = net_name(self, *a);
                 write!(f, "assign {} = ~{};\n", slot_a, input_a)?;
-                }
+            }
 
             j = j + 1;
         }

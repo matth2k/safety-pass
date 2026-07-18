@@ -4,12 +4,10 @@
 
 */
 
+use crate::VerilogLib;
+use crate::logic_eqn::LogicEqn;
 use safety_net::{Identifier, Instantiable, Logic, Net, Parameter, format_id};
 use std::{collections::HashMap, fmt, str::FromStr};
-use crate::logic_eqn::LogicEqn;
-use crate::VerilogLib;
-
-
 
 /// A logic cell type
 #[allow(missing_docs)]
@@ -294,7 +292,6 @@ fn or_n(eqn: &mut LogicEqn, ins: &Vec<usize>) -> usize {
         i = i + 1;
     }
     return result;
-
 }
 
 fn nand_n(eqn: &mut LogicEqn, ins: &Vec<usize>) -> usize {
@@ -310,15 +307,14 @@ fn nor_n(eqn: &mut LogicEqn, ins: &Vec<usize>) -> usize {
 fn xor2(eqn: &mut LogicEqn, a: usize, b: usize) -> usize {
     let not_a = eqn.inv(a);
     let not_b = eqn.inv(b);
-    let and1_result  = eqn.and(a, not_b);
-    let and2_result  = eqn.and(not_a, b);
+    let and1_result = eqn.and(a, not_b);
+    let and2_result = eqn.and(not_a, b);
     return or2(eqn, and1_result, and2_result);
 }
 
 fn xnor2(eqn: &mut LogicEqn, a: usize, b: usize) -> usize {
     let xor_result = xor2(eqn, a, b);
     return eqn.inv(xor_result);
-
 }
 
 fn mux2(eqn: &mut LogicEqn, s: usize, a: usize, b: usize) -> usize {
@@ -392,7 +388,7 @@ impl CellType {
                 panic!("TODO");
             }
             Self::OAI22 => {
-                panic!("TODO"); 
+                panic!("TODO");
             }
             Self::AOI211 => {
                 panic!("TODO");
@@ -622,27 +618,48 @@ impl VerilogLib for Cell {
     fn verilog_library() -> String {
         // Explictly put all celltypes into a list so we can make verilog modules of them.
         let all_cell_types = vec![
-            CellType::AND, CellType::NAND, CellType::OR, CellType::NOR,
-            CellType::XOR, CellType::XNOR, CellType::NOT, CellType::INV,
-            CellType::AND2, CellType::NAND2, CellType::OR2, CellType::NOR2,
-            CellType::XOR2, CellType::XNOR2,
-            CellType::AND3, CellType::NAND3, CellType::OR3, CellType::NOR3,
-            CellType::AND4, CellType::NAND4, CellType::OR4, CellType::NOR4,
-            CellType::MUX, CellType::MUX2, CellType::MUXF7, CellType::MUXF8, CellType::MUXF9, CellType::MAJ3,
+            CellType::AND,
+            CellType::NAND,
+            CellType::OR,
+            CellType::NOR,
+            CellType::XOR,
+            CellType::XNOR,
+            CellType::NOT,
+            CellType::INV,
+            CellType::AND2,
+            CellType::NAND2,
+            CellType::OR2,
+            CellType::NOR2,
+            CellType::XOR2,
+            CellType::XNOR2,
+            CellType::AND3,
+            CellType::NAND3,
+            CellType::OR3,
+            CellType::NOR3,
+            CellType::AND4,
+            CellType::NAND4,
+            CellType::OR4,
+            CellType::NOR4,
+            CellType::MUX,
+            CellType::MUX2,
+            CellType::MUXF7,
+            CellType::MUXF8,
+            CellType::MUXF9,
+            CellType::MAJ3,
             // CellType::AOI21, CellType::OAI21, CellType::AOI211, CellType::AOI22,
             // CellType::OAI211, CellType::OAI22, CellType::OAI221, CellType::AOI221,
-            // CellType::OAI222, CellType::AOI222, 
+            // CellType::OAI222, CellType::AOI222,
         ];
 
         let mut output = String::new(); // this will be the finished verilog file
         let mut i = 0;
 
-        while i < all_cell_types.len() { // Iterate through all the cells
+        while i < all_cell_types.len() {
+            // Iterate through all the cells
             let cell_type = all_cell_types[i];
             let eqn = cell_type.get_logic_eqn(); // Get the logic equation of the current cell
             let output_ports = cell_type.get_output_ports(); // Get the name(s) of the output port(s)
-            
-            
+
             // module header name; module AND
             output.push_str("module ");
             output.push_str(&cell_type.to_string());
@@ -671,10 +688,8 @@ impl VerilogLib for Cell {
             //     output Y
             // );
 
-            
-
             // Use the previously defined LogicEqn display
-            output.push_str(&eqn.to_string()); 
+            output.push_str(&eqn.to_string());
 
             // wire the last node to the module output; assign Y = nX
             if let Some(last_index) = eqn.output() {

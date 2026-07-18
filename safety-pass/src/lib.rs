@@ -58,7 +58,6 @@ pub trait VerilogLib: Instantiable {
     fn verilog_library() -> String;
 }
 
-
 /// A sequential pipeline of [Pass]es
 pub struct Pipeline<I: Instantiable> {
     passes: Vec<Box<dyn Pass<I = I>>>,
