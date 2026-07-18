@@ -4,6 +4,8 @@
 
 */
 
+use crate::VerilogLib;
+use crate::logic_eqn::LogicEqn;
 use safety_net::{Identifier, Instantiable, Logic, Net, Parameter, format_id};
 use std::{collections::HashMap, fmt, str::FromStr};
 
@@ -265,6 +267,162 @@ impl CellType {
     }
 }
 
+fn or2(eqn: &mut LogicEqn, a: usize, b: usize) -> usize {
+    let not_a = eqn.inv(a);
+    let not_b = eqn.inv(b);
+    let and_ab = eqn.and(not_a, not_b);
+    eqn.inv(and_ab)
+}
+
+fn and_n(eqn: &mut LogicEqn, ins: &[usize]) -> usize {
+    let mut result = ins[0];
+    let mut i = 1;
+    while i < ins.len() {
+        result = eqn.and(result, ins[i]);
+        i += 1;
+    }
+    result
+}
+
+fn or_n(eqn: &mut LogicEqn, ins: &[usize]) -> usize {
+    let mut result = ins[0];
+    let mut i = 1;
+    while i < ins.len() {
+        result = or2(eqn, result, ins[i]);
+        i += 1;
+    }
+    result
+}
+
+fn nand_n(eqn: &mut LogicEqn, ins: &[usize]) -> usize {
+    let and_result = and_n(eqn, ins);
+    eqn.inv(and_result)
+}
+
+fn nor_n(eqn: &mut LogicEqn, ins: &[usize]) -> usize {
+    let and_result = or_n(eqn, ins);
+    eqn.inv(and_result)
+}
+
+fn xor2(eqn: &mut LogicEqn, a: usize, b: usize) -> usize {
+    let not_a = eqn.inv(a);
+    let not_b = eqn.inv(b);
+    let and1_result = eqn.and(a, not_b);
+    let and2_result = eqn.and(not_a, b);
+    or2(eqn, and1_result, and2_result)
+}
+
+fn xnor2(eqn: &mut LogicEqn, a: usize, b: usize) -> usize {
+    let xor_result = xor2(eqn, a, b);
+    eqn.inv(xor_result)
+}
+
+fn mux2(eqn: &mut LogicEqn, s: usize, a: usize, b: usize) -> usize {
+    let not_s = eqn.inv(s);
+    let or_1 = eqn.and(not_s, a);
+    let and_1 = eqn.and(s, b);
+    or2(eqn, or_1, and_1)
+}
+
+impl CellType {
+    /// Builds the combiniational logic of this cell as a LogicEqn
+    pub fn get_logic_eqn(&self) -> LogicEqn {
+        let mut eqn = LogicEqn::new();
+
+        // make an Input node for every port this cell type has
+        let ports = self.get_input_ports();
+        let mut ins: Vec<usize> = Vec::new();
+        let mut i = 0;
+        while i < ports.len() {
+            let name = ports[i].to_string();
+            let idx = eqn.input(&name);
+            ins.push(idx);
+            i += 1;
+        }
+
+        match self {
+            Self::AND | Self::AND2 | Self::AND3 | Self::AND4 => {
+                and_n(&mut eqn, &ins);
+            }
+            Self::NAND | Self::NAND2 | Self::NAND3 | Self::NAND4 => {
+                nand_n(&mut eqn, &ins);
+            }
+            Self::OR | Self::OR2 | Self::OR3 | Self::OR4 => {
+                or_n(&mut eqn, &ins);
+            }
+            Self::NOR | Self::NOR2 | Self::NOR3 | Self::NOR4 => {
+                nor_n(&mut eqn, &ins);
+            }
+            Self::XOR | Self::XOR2 => {
+                xor2(&mut eqn, ins[0], ins[1]);
+            }
+            Self::XNOR | Self::XNOR2 => {
+                xnor2(&mut eqn, ins[0], ins[1]);
+            }
+            Self::NOT | Self::INV => {
+                eqn.inv(ins[0]);
+            }
+            Self::MAJ3 => {
+                let ab_and = eqn.and(ins[0], ins[1]);
+                let ac_and = eqn.and(ins[0], ins[2]);
+                let bc_and = eqn.and(ins[1], ins[2]);
+                let or_1 = or2(&mut eqn, ab_and, ac_and);
+                or2(&mut eqn, or_1, bc_and);
+            }
+            Self::MUX => {
+                mux2(&mut eqn, ins[0], ins[1], ins[2]);
+            }
+            Self::MUX2 => {
+                mux2(&mut eqn, ins[0], ins[2], ins[1]);
+            }
+            Self::MUXF7 | Self::MUXF8 | Self::MUXF9 => {
+                mux2(&mut eqn, ins[0], ins[2], ins[1]);
+            }
+            Self::AOI21 => {
+                panic!("TODO- not entirely sure");
+            }
+            Self::OAI21 => {
+                panic!("TODO");
+            }
+            Self::AOI22 => {
+                panic!("TODO");
+            }
+            Self::OAI22 => {
+                panic!("TODO");
+            }
+            Self::AOI211 => {
+                panic!("TODO");
+            }
+            Self::OAI211 => {
+                panic!("TODO");
+            }
+            Self::AOI221 => {
+                panic!("TODO");
+            }
+            Self::OAI221 => {
+                panic!("TODO");
+            }
+            Self::AOI222 => {
+                panic!("TODO");
+            }
+            Self::OAI222 => {
+                panic!("TODO");
+            }
+            Self::LUT1 | Self::LUT2 | Self::LUT3 | Self::LUT4 | Self::LUT5 | Self::LUT6 => {
+                panic!("LUT function cannot be represented by a LogicEqn");
+            }
+            Self::VCC | Self::GND => {
+                panic!("constants cannot be represented by a LogicEqn");
+            }
+            Self::FDRE | Self::FDSE | Self::FDPE | Self::FDCE => {
+                panic!("flip-flops cannot be represented by a LogicEqn");
+            }
+        }
+
+        eqn
+    }
+}
+
 impl FromStr for CellType {
     type Err = safety_net::Error;
 
@@ -453,5 +611,100 @@ impl Instantiable for Cell {
 impl nl_compiler::FromId for Cell {
     fn from_id(s: &Identifier) -> Result<Self, safety_net::Error> {
         CellType::from_str(&s.to_string()).map(|ctype| Cell::new(ctype, None))
+    }
+}
+
+impl VerilogLib for Cell {
+    fn verilog_library() -> String {
+        // Explictly put all celltypes into a list so we can make verilog modules of them.
+        let all_cell_types = vec![
+            CellType::AND,
+            CellType::NAND,
+            CellType::OR,
+            CellType::NOR,
+            CellType::XOR,
+            CellType::XNOR,
+            CellType::NOT,
+            CellType::INV,
+            CellType::AND2,
+            CellType::NAND2,
+            CellType::OR2,
+            CellType::NOR2,
+            CellType::XOR2,
+            CellType::XNOR2,
+            CellType::AND3,
+            CellType::NAND3,
+            CellType::OR3,
+            CellType::NOR3,
+            CellType::AND4,
+            CellType::NAND4,
+            CellType::OR4,
+            CellType::NOR4,
+            CellType::MUX,
+            CellType::MUX2,
+            CellType::MUXF7,
+            CellType::MUXF8,
+            CellType::MUXF9,
+            CellType::MAJ3,
+            // CellType::AOI21, CellType::OAI21, CellType::AOI211, CellType::AOI22,
+            // CellType::OAI211, CellType::OAI22, CellType::OAI221, CellType::AOI221,
+            // CellType::OAI222, CellType::AOI222,
+        ];
+
+        let mut output = String::new(); // this will be the finished verilog file
+        let mut i = 0;
+
+        while i < all_cell_types.len() {
+            // Iterate through all the cells
+            let cell_type = all_cell_types[i];
+            let eqn = cell_type.get_logic_eqn(); // Get the logic equation of the current cell
+            let output_ports = cell_type.get_output_ports(); // Get the name(s) of the output port(s)
+
+            // module header name; module AND
+            output.push_str("module ");
+            output.push_str(&cell_type.to_string());
+            output.push_str("(\n");
+
+            // input ports names; input A, ..
+            let input_names = eqn.input_names();
+            let mut j = 0;
+            while j < input_names.len() {
+                output.push_str("    input ");
+                output.push_str(&input_names[j]);
+                output.push_str(",\n");
+                j += 1;
+            }
+
+            // output port; output Y
+            let out_port_name = output_ports[0].to_string();
+            output.push_str("    output ");
+            output.push_str(&out_port_name);
+            output.push_str("\n);\n");
+
+            // Now we have something like
+            // module AND(
+            //     input A,
+            //     input B,
+            //     output Y
+            // );
+
+            // Use the previously defined LogicEqn display
+            output.push_str(&eqn.to_string());
+
+            // wire the last node to the module output; assign Y = nX
+            if let Some(last_index) = eqn.output() {
+                output.push_str("assign ");
+                output.push_str(&out_port_name);
+                output.push_str(" = n");
+                output.push_str(&last_index.to_string());
+                output.push_str(";\n");
+            }
+
+            output.push_str("endmodule\n\n");
+
+            i += 1;
+        }
+
+        output
     }
 }

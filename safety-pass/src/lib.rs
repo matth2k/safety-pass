@@ -12,6 +12,8 @@ use std::{collections::HashSet, fmt, rc::Rc};
 use thiserror::Error;
 
 mod cells;
+/// Arena based representation of combinational logic
+pub mod logic_eqn;
 
 /// Errors for running passes
 #[derive(Error, Debug)]
@@ -49,6 +51,11 @@ pub trait Pass: fmt::Debug + fmt::Display {
         netlist.verify()?;
         self.run(netlist)
     }
+}
+/// Type that will generate verilog file for every supported cell
+pub trait VerilogLib: Instantiable {
+    /// Returns a verilog module definition for every supported cell
+    fn verilog_library() -> String;
 }
 
 /// A sequential pipeline of [Pass]es
