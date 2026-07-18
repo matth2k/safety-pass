@@ -17,6 +17,13 @@ pub struct LogicEqn {
     nodes: Vec<Node>,
 }
 
+/// Default trait implementation
+impl Default for LogicEqn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LogicEqn {
     /// Creates a new, empty logic equation
     pub fn new() -> LogicEqn {
@@ -52,7 +59,7 @@ impl LogicEqn {
 
     /// Returns the index of the last node, the output
     pub fn output(&self) -> Option<usize> {
-        if self.nodes.len() == 0 {
+        if self.nodes.is_empty() {
             return None;
         }
         Some(self.nodes.len() - 1)
@@ -66,7 +73,7 @@ impl LogicEqn {
                 names.push(name.clone());
             }
         }
-        return names;
+        names
     }
 }
 
@@ -77,7 +84,7 @@ impl From<Vec<Node>> for LogicEqn {
         for node in nodes {
             eqn.push(node);
         }
-        return eqn;
+        eqn
     }
 }
 
@@ -88,7 +95,7 @@ fn net_name(eqn: &LogicEqn, idx: usize) -> String {
     if let Node::Input(name) = node {
         return name.clone();
     }
-    return format!("n{}", idx);
+    format!("n{}", idx)
 }
 
 impl fmt::Display for LogicEqn {
@@ -98,16 +105,12 @@ impl fmt::Display for LogicEqn {
         while i < self.nodes.len() {
             let node = &self.nodes[i];
 
-            let is_input = if let Node::Input(_) = node {
-                true
-            } else {
-                false
-            };
+            let is_input = matches!(node, Node::Input(_));
 
-            if is_input == false {
-                write!(f, "wire {};\n", net_name(self, i))?;
+            if !is_input {
+                writeln!(f, "wire {};", net_name(self, i))?;
             }
-            i = i + 1;
+            i += 1;
         }
         //write the actual logic for each node
         let mut j = 0;
@@ -118,16 +121,16 @@ impl fmt::Display for LogicEqn {
                 let slot_name = net_name(self, j);
                 let input_a = net_name(self, *a);
                 let input_b = net_name(self, *b);
-                write!(f, "assign {} = {} & {};\n", slot_name, input_a, input_b)?;
+                writeln!(f, "assign {} = {} & {};", slot_name, input_a, input_b)?;
             }
             if let Node::Inv(a) = node {
                 let slot_a = net_name(self, j);
                 let input_a = net_name(self, *a);
-                write!(f, "assign {} = ~{};\n", slot_a, input_a)?;
+                writeln!(f, "assign {} = ~{};", slot_a, input_a)?;
             }
 
-            j = j + 1;
+            j += 1;
         }
-        return Ok(());
+        Ok(())
     }
 }

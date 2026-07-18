@@ -271,37 +271,37 @@ fn or2(eqn: &mut LogicEqn, a: usize, b: usize) -> usize {
     let not_a = eqn.inv(a);
     let not_b = eqn.inv(b);
     let and_ab = eqn.and(not_a, not_b);
-    return eqn.inv(and_ab);
+    eqn.inv(and_ab)
 }
 
-fn and_n(eqn: &mut LogicEqn, ins: &Vec<usize>) -> usize {
+fn and_n(eqn: &mut LogicEqn, ins: &[usize]) -> usize {
     let mut result = ins[0];
     let mut i = 1;
     while i < ins.len() {
         result = eqn.and(result, ins[i]);
-        i = i + 1;
+        i += 1;
     }
-    return result;
+    result
 }
 
-fn or_n(eqn: &mut LogicEqn, ins: &Vec<usize>) -> usize {
+fn or_n(eqn: &mut LogicEqn, ins: &[usize]) -> usize {
     let mut result = ins[0];
     let mut i = 1;
     while i < ins.len() {
         result = or2(eqn, result, ins[i]);
-        i = i + 1;
+        i += 1;
     }
-    return result;
+    result
 }
 
-fn nand_n(eqn: &mut LogicEqn, ins: &Vec<usize>) -> usize {
+fn nand_n(eqn: &mut LogicEqn, ins: &[usize]) -> usize {
     let and_result = and_n(eqn, ins);
-    return eqn.inv(and_result);
+    eqn.inv(and_result)
 }
 
-fn nor_n(eqn: &mut LogicEqn, ins: &Vec<usize>) -> usize {
+fn nor_n(eqn: &mut LogicEqn, ins: &[usize]) -> usize {
     let and_result = or_n(eqn, ins);
-    return eqn.inv(and_result);
+    eqn.inv(and_result)
 }
 
 fn xor2(eqn: &mut LogicEqn, a: usize, b: usize) -> usize {
@@ -309,19 +309,19 @@ fn xor2(eqn: &mut LogicEqn, a: usize, b: usize) -> usize {
     let not_b = eqn.inv(b);
     let and1_result = eqn.and(a, not_b);
     let and2_result = eqn.and(not_a, b);
-    return or2(eqn, and1_result, and2_result);
+    or2(eqn, and1_result, and2_result)
 }
 
 fn xnor2(eqn: &mut LogicEqn, a: usize, b: usize) -> usize {
     let xor_result = xor2(eqn, a, b);
-    return eqn.inv(xor_result);
+    eqn.inv(xor_result)
 }
 
 fn mux2(eqn: &mut LogicEqn, s: usize, a: usize, b: usize) -> usize {
     let not_s = eqn.inv(s);
     let or_1 = eqn.and(not_s, a);
     let and_1 = eqn.and(s, b);
-    return or2(eqn, or_1, and_1);
+    or2(eqn, or_1, and_1)
 }
 
 impl CellType {
@@ -337,7 +337,7 @@ impl CellType {
             let name = ports[i].to_string();
             let idx = eqn.input(&name);
             ins.push(idx);
-            i = i + 1;
+            i += 1;
         }
 
         match self {
@@ -419,7 +419,7 @@ impl CellType {
             }
         }
 
-        return eqn;
+        eqn
     }
 }
 
@@ -672,7 +672,7 @@ impl VerilogLib for Cell {
                 output.push_str("    input ");
                 output.push_str(&input_names[j]);
                 output.push_str(",\n");
-                j = j + 1;
+                j += 1;
             }
 
             // output port; output Y
@@ -702,9 +702,9 @@ impl VerilogLib for Cell {
 
             output.push_str("endmodule\n\n");
 
-            i = i + 1;
+            i += 1;
         }
 
-        return output;
+        output
     }
 }
