@@ -1,6 +1,6 @@
 [package]
 name = "nl_opt"
-version = "0.3.5"
+version = "0.3.6"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 
@@ -34,8 +34,8 @@ readme = "README.md"
 repository = "https://github.com/matth2k/safety-pass"
 
 [dependencies]
-safety-pass = { path = "../safety-pass", version = "0.4.7", features = ["id"] }
-safety-net = { version = "0.10.0" }
+safety-pass = { path = "../safety-pass", version = "0.4.8", features = ["id"] }
+safety-net = { version = "0.10.1" }
 simplelog = {version = "0.12.2" }
 nl-compiler = { version = "0.2.0" }
 sv-parser = { version = "0.13.4" }

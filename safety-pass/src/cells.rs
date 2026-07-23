@@ -4,7 +4,7 @@
 
 */
 
-use safety_net::{Identifier, Instantiable, Logic, Net, Parameter, format_id};
+use safety_net::{DrivenNet, Identifier, Instantiable, Logic, Net, NetRef, Parameter, format_id};
 use std::{collections::HashMap, fmt, str::FromStr};
 
 /// A logic cell type
@@ -446,6 +446,24 @@ impl Instantiable for Cell {
 
     fn is_seq(&self) -> bool {
         self.ptype.is_reg()
+    }
+}
+
+/// Returns the underling primitive variant associated with this object
+pub trait Primitive {
+    /// Get the primitive cell type
+    fn get_ptype(&self) -> Option<CellType>;
+}
+
+impl Primitive for NetRef<Cell> {
+    fn get_ptype(&self) -> Option<CellType> {
+        self.get_instance_type().map(|t| t.get_type())
+    }
+}
+
+impl Primitive for DrivenNet<Cell> {
+    fn get_ptype(&self) -> Option<CellType> {
+        self.get_instance_type().map(|t| t.get_type())
     }
 }
 
