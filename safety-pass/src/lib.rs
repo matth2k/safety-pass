@@ -1,5 +1,6 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![warn(missing_docs)]
+#![recursion_limit = "256"]
 /*!
 
 Compiler pass infrastructure for safety-net
