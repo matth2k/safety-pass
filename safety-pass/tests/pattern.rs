@@ -3,7 +3,7 @@ use safety_pass::patterns::{
     AndAbsorb, AndIdentity, DoubleNegation, Idempotent, MonotoneFold, NandAbsorb, NandIdentity,
     NorAbsorb, NorIdentity, OrAbsorb, OrIdentity,
 };
-use safety_pass::{Cell, CellType, Folder, Pass};
+use safety_pass::{Cell, CellType, Folder, Pass, Primitive};
 use std::rc::Rc;
 
 fn and_gate() -> Cell {
@@ -336,10 +336,7 @@ fn test_monotone_fold_and3() {
     // Verify the remaining gate is AND3
     let gates: Vec<_> = nl.objects().collect();
     assert_eq!(gates.len(), 4);
-    assert_eq!(
-        gates[3].get_instance_type().unwrap().get_type(),
-        CellType::AND3
-    );
+    assert_eq!(gates[3].get_ptype(), Some(CellType::AND3));
 }
 
 #[test]
@@ -358,10 +355,7 @@ fn test_monotone_fold_and4() {
     assert_eq!(after + 2, before);
     let gates: Vec<_> = nl.objects().collect();
     assert_eq!(gates.len(), 5);
-    assert_eq!(
-        gates[4].get_instance_type().unwrap().get_type(),
-        CellType::AND4
-    );
+    assert_eq!(gates[4].get_ptype(), Some(CellType::AND4));
 }
 
 #[test]
@@ -379,10 +373,7 @@ fn test_monotone_fold_or3() {
     assert_eq!(after + 1, before);
     let gates: Vec<_> = nl.objects().collect();
     assert_eq!(gates.len(), 4);
-    assert_eq!(
-        gates[3].get_instance_type().unwrap().get_type(),
-        CellType::OR3
-    );
+    assert_eq!(gates[3].get_ptype(), Some(CellType::OR3));
 }
 
 #[test]
@@ -565,10 +556,7 @@ fn test_nand_const1() {
     let outputs = nl.outputs();
     assert_eq!(outputs.len(), 1);
     let driver = outputs[0].0.clone().unwrap();
-    assert_eq!(
-        driver.get_instance_type().unwrap().get_type(),
-        CellType::INV
-    );
+    assert_eq!(driver.get_ptype(), Some(CellType::INV));
     let inv_input = driver.get_input(0).get_driver().unwrap();
     let inputs: Vec<_> = nl.inputs().collect();
     assert_eq!(inputs.len(), 1);
@@ -603,8 +591,5 @@ fn test_nor_const0() {
     let outputs = nl.outputs();
     assert_eq!(outputs.len(), 1);
     let driver = outputs[0].0.clone().unwrap();
-    assert_eq!(
-        driver.get_instance_type().unwrap().get_type(),
-        CellType::INV
-    );
+    assert_eq!(driver.get_ptype(), Some(CellType::INV));
 }

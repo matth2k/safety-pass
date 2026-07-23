@@ -1,6 +1,6 @@
 [package]
 name = "safety-pass"
-version = "0.4.7"
+version = "0.4.8"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 
@@ -35,7 +35,7 @@ readme = "README.md"
 repository = "https://github.com/matth2k/safety-pass"
 
 [dependencies]
-safety-net = { version = "0.10.0" }
+safety-net = { version = "0.10.1" }
 thiserror = { version = "2.0.18" }
 log = { version = "0.4.32" }
 clap = {version = "4.6.1", features = ["derive"] }

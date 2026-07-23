@@ -274,7 +274,7 @@ dependencies = [
 
 [[package]]
 name = "nl_opt"
-version = "0.3.5"
+version = "0.3.6"
 dependencies = [
  "clap",
  "log",
@@ -480,9 +480,9 @@ checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
 
 [[package]]
 name = "safety-net"
-version = "0.10.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db168e606401c2434fa144df7715f9ed6b4c49566c83237a145dca8bb7c93cc9"
+checksum = "8f0819205a787a4b1f85456d32e5aa4db7bdc441d520642bf4dce9fe0c0732c9"
 dependencies = [
  "bitvec",
  "petgraph",
@@ -491,7 +491,7 @@ dependencies = [
 
 [[package]]
 name = "safety-pass"
-version = "0.4.7"
+version = "0.4.8"
 dependencies = [
  "clap",
  "log",
