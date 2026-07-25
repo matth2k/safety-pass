@@ -4,7 +4,7 @@
 
 */
 
-use crate::{Cell, CellType, Create, Pattern, Replace};
+use crate::{Cell, CellType, Create, Pattern, Primitive, Replace};
 use log::debug;
 use safety_net::{DrivenNet, Error, Instantiable, NetRef};
 use std::fmt;
@@ -154,7 +154,7 @@ impl Pattern for MonotoneFold {
             let Some(driver) = input.get_driver() else {
                 return Ok(false);
             };
-            match driver.get_instance_type().map(|ct| ct.get_type()) {
+            match driver.get_ptype() {
                 Some(ct)
                     if (ct.is_and() && root_type.is_and()) || (ct.is_or() && root_type.is_or()) =>
                 {
@@ -357,7 +357,7 @@ impl Pattern for DoubleNegation {
             return Ok(false);
         };
 
-        let Some(cell_type) = driver.get_instance_type().map(|t| t.get_type()) else {
+        let Some(cell_type) = driver.get_ptype() else {
             return Ok(false);
         };
 
