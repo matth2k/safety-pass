@@ -339,7 +339,6 @@ impl CellType {
             ins.push(idx);
             i += 1;
         }
-
         match self {
             Self::AND | Self::AND2 | Self::AND3 | Self::AND4 => {
                 and_n(&mut eqn, &ins);
@@ -379,34 +378,68 @@ impl CellType {
                 mux2(&mut eqn, ins[0], ins[2], ins[1]);
             }
             Self::AOI21 => {
-                panic!("TODO- not entirely sure");
+                let bc_and = eqn.and(ins[1], ins[2]);
+                let abc_or = or2(&mut eqn, bc_and, ins[0]);
+                eqn.inv(abc_or);
             }
             Self::OAI21 => {
-                panic!("TODO");
+                let bc_or = or2(&mut eqn, ins[1], ins[2]);
+                let abc_and = eqn.and(bc_or, ins[0]);
+                eqn.inv(abc_and);
             }
             Self::AOI22 => {
-                panic!("TODO");
+                let ab_and = eqn.and(ins[0], ins[1]);
+                let cd_and = eqn.and(ins[2], ins[3]);
+                let abcd_or = or2(&mut eqn, ab_and, cd_and);
+                eqn.inv(abcd_or);
             }
             Self::OAI22 => {
-                panic!("TODO");
+                let ab_or = or2(&mut eqn, ins[0], ins[1]);
+                let cd_or = or2(&mut eqn, ins[2], ins[3]);
+                let abcd_and = eqn.and(ab_or, cd_or);
+                eqn.inv(abcd_and);
             }
             Self::AOI211 => {
-                panic!("TODO");
+                let cd_and = eqn.and(ins[2], ins[3]);
+                let bcd_or: usize = or2(&mut eqn, cd_and, ins[1]);
+                let abcd_or = or2(&mut eqn, bcd_or, ins[0]);
+                eqn.inv(abcd_or);
             }
             Self::OAI211 => {
-                panic!("TODO");
+                let cd_or = or2(&mut eqn, ins[2], ins[3]);
+                let bcd_and = eqn.and(cd_or, ins[1]);
+                let abcd_and = eqn.and(bcd_and, ins[0]);
+                eqn.inv(abcd_and);
             }
             Self::AOI221 => {
-                panic!("TODO");
+                let bb_and = eqn.and(ins[1], ins[2]);
+                let cc_and = eqn.and(ins[3], ins[4]);
+                let bc_or = or2(&mut eqn, bb_and, cc_and);
+                let abc_or = or2(&mut eqn, bc_or, ins[0]);
+                eqn.inv(abc_or);
             }
             Self::OAI221 => {
-                panic!("TODO");
+                let bb_or = or2(&mut eqn, ins[1], ins[2]);
+                let cc_or = or2(&mut eqn, ins[3], ins[4]);
+                let bc_and = eqn.and(bb_or, cc_or);
+                let abc_and = eqn.and(bc_and, ins[0]);
+                eqn.inv(abc_and);
             }
             Self::AOI222 => {
-                panic!("TODO");
+                let aa_and = eqn.and(ins[0], ins[1]);
+                let bb_and = eqn.and(ins[2], ins[3]);
+                let cc_and = eqn.and(ins[4], ins[5]);
+                let ab_or = or2(&mut eqn, aa_and, bb_and);
+                let abc_or = or2(&mut eqn, ab_or, cc_and);
+                eqn.inv(abc_or);
             }
             Self::OAI222 => {
-                panic!("TODO");
+                let aa_or = or2(&mut eqn, ins[0], ins[1]);
+                let bb_or: usize = or2(&mut eqn, ins[2], ins[3]);
+                let cc_or = or2(&mut eqn, ins[4], ins[5]);
+                let ab_and = eqn.and(aa_or, bb_or);
+                let abc_and = eqn.and(ab_and, cc_or);
+                eqn.inv(abc_and);
             }
             Self::LUT1 | Self::LUT2 | Self::LUT3 | Self::LUT4 | Self::LUT5 | Self::LUT6 => {
                 panic!("LUT function cannot be represented by a LogicEqn");
@@ -646,9 +679,16 @@ impl VerilogLib for Cell {
             CellType::MUXF8,
             CellType::MUXF9,
             CellType::MAJ3,
-            // CellType::AOI21, CellType::OAI21, CellType::AOI211, CellType::AOI22,
-            // CellType::OAI211, CellType::OAI22, CellType::OAI221, CellType::AOI221,
-            // CellType::OAI222, CellType::AOI222,
+            CellType::AOI21,
+            CellType::OAI21,
+            CellType::AOI211,
+            CellType::AOI22,
+            CellType::OAI211,
+            CellType::OAI22,
+            CellType::OAI221,
+            CellType::AOI221,
+            CellType::OAI222,
+            CellType::AOI222,
         ];
 
         let mut output = String::new(); // this will be the finished verilog file
