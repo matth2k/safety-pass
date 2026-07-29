@@ -76,7 +76,9 @@ impl<I: Instantiable> Pass for PrintVerilog<I> {
     type I = I;
 
     fn run(&self, netlist: &Rc<Netlist<Self::I>>) -> Result<String, Error> {
-        Ok(netlist.to_string())
+        use safety_net::emitter::VerilogEmitter;
+        let emitter = VerilogEmitter::new_default(netlist);
+        Ok(emitter.to_string())
     }
 }
 
