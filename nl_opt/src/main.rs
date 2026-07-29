@@ -22,7 +22,7 @@ struct Args {
 
     /// Verify after every pass (not just the last)
     #[arg(long, default_value_t = false)]
-    verify: bool,
+    verify_each: bool,
 
     /// Verbose logging
     #[arg(short, long, default_value_t = false)]
@@ -121,7 +121,7 @@ fn main() -> std::io::Result<()> {
     }
 
     let output = pipeline
-        .execute(&f, args.verify)
+        .execute(&f, args.verify_each)
         .map_err(|e| std::io::Error::other(e.to_string()))?;
 
     println!("{output}");
