@@ -2,7 +2,7 @@ use clap::Parser;
 use log::{error, info, warn};
 use nl_compiler::{from_vast, from_vast_overrides};
 use safety_net::Identifier;
-use safety_net::emitter::{VerilogEmitter, VerilogEmitterConfig};
+use safety_net::emitter::VerilogEmitter;
 use safety_pass::passes::BasicPasses;
 use safety_pass::{Cell, Pipeline};
 use simplelog::{ColorChoice, ConfigBuilder, TermLogger, TerminalMode};
