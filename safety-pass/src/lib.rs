@@ -79,9 +79,13 @@ impl<I: Instantiable> Pipeline<I> {
         self.passes.push(pass);
     }
 
-    /// Execute the pipeline on a netlist. If `verify` is true, verify the netlist after each pass.
+    /// Execute the pipeline on a netlist. If `verify_each` is true, verify the netlist after each pass.
     /// Returns the output of the last pass.
-    pub fn execute(&self, netlist: &Rc<Netlist<I>>, verify: bool) -> Result<String, Error<'_, I>> {
+    pub fn execute(
+        &self,
+        netlist: &Rc<Netlist<I>>,
+        verify_each: bool,
+    ) -> Result<String, Error<'_, I>> {
         let mut res = String::new();
         let n = self.passes.len();
         for (i, pass) in self.passes.iter().enumerate() {
@@ -90,7 +94,7 @@ impl<I: Instantiable> Pipeline<I> {
                 Ok(output) => {
                     res = output;
                     if i != n - 1 {
-                        if verify && let Err(e) = netlist.verify() {
+                        if verify_each && let Err(e) = netlist.verify() {
                             return Err(Error::PassError(pass.as_ref(), e));
                         }
                         for line in res.lines() {
