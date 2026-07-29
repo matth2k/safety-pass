@@ -17,7 +17,7 @@ struct Args {
     /// Verilog file to read from (or use stdin)
     input: Option<PathBuf>,
 
-    /// Verilog file to output to (or use stdout)
+    /// Optional Verilog file to output to
     output: Option<PathBuf>,
 
     /// Do not parse with Xilinx-specific port names
@@ -136,17 +136,14 @@ fn main() -> std::io::Result<()> {
         }
     };
 
-    println!("{output}");
-
-    info!("Writing output netlist to Verilog...");
-    let emitter = VerilogEmitter::new_default(&f);
-    let emitter = if args.non_ansi {
-        emitter.with_nonansi_style()
-    } else {
-        emitter.with_ansi_style()
-    };
-
     if let Some(p) = args.output {
+        info!("Writing output netlist to Verilog...");
+        let emitter = VerilogEmitter::new_default(&f);
+        let emitter = if args.non_ansi {
+            emitter.with_nonansi_style()
+        } else {
+            emitter.with_ansi_style()
+        };
         let mut file = std::fs::File::create(p)?;
         write!(
             file,
@@ -155,10 +152,9 @@ fn main() -> std::io::Result<()> {
             env!("CARGO_PKG_VERSION"),
             emitter
         )?;
-        info!("Goodbye");
-    } else {
-        print!("{emitter}");
     }
+
+    println!("{output}");
 
     Ok(())
 }
