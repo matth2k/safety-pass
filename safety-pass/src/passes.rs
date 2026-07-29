@@ -368,6 +368,6 @@ register_passes!(BasicPasses<Cell>;
     InsertInv,
     /// A dummy pass that emits the Verilog of the netlist.
     PrintVerilog<Cell>,
-    /// A pass that renames wires and instances sequentially __0__, __1__, ...
+    /// Renames nets/instances sequentially __0__, __1__, ...
     RenameNets<Cell>,
 );
