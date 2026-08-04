@@ -105,7 +105,7 @@ impl<I: Instantiable> Pass for DotGraph<I> {
     type I = I;
 
     fn run(&self, netlist: &Rc<Netlist<Self::I>>) -> Result<String, Error> {
-        netlist.dot_string()
+        Ok(netlist.dot_string())
     }
 }
 

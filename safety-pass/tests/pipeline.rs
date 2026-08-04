@@ -7,7 +7,7 @@ fn and_gate() -> Cell {
 }
 
 fn ex_netlist() -> Rc<Netlist<Cell>> {
-    let nl = Netlist::new("top".to_string());
+    let nl = Netlist::new("top".into());
     let a = nl.insert_input(Net::new_logic("a".into()));
     let b = nl.insert_input(Net::new_logic("b".into()));
     let g = nl
