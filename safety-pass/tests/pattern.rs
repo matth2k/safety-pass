@@ -11,7 +11,7 @@ fn and_gate() -> Cell {
 }
 
 fn ex_netlist() -> Rc<Netlist<Cell>> {
-    let nl = Netlist::new("top".to_string());
+    let nl = Netlist::new("top".into());
     let a = nl.insert_input(Net::new_logic("a".into()));
     let b = nl.insert_input(Net::new_logic("b".into()));
     let g = nl
@@ -79,7 +79,7 @@ fn monotone_and_netlist() -> Rc<Netlist<Cell>> {
     //    AND2(inst_0) ─┐
     // b ─┘             ├── AND2(inst_1) ── y
     // c ───────────────┘
-    let nl = Netlist::new("top".to_string());
+    let nl = Netlist::new("top".into());
     let a = nl.insert_input(Net::new_logic("a".into()));
     let b = nl.insert_input(Net::new_logic("b".into()));
     let c = nl.insert_input(Net::new_logic("c".into()));
@@ -101,7 +101,7 @@ fn monotone_and4_netlist() -> Rc<Netlist<Cell>> {
     // c ─┐             │
     //    AND2(inst_1) ─┘
     // d ─┘
-    let nl = Netlist::new("top".to_string());
+    let nl = Netlist::new("top".into());
     let a = nl.insert_input(Net::new_logic("a".into()));
     let b = nl.insert_input(Net::new_logic("b".into()));
     let c = nl.insert_input(Net::new_logic("c".into()));
@@ -123,7 +123,7 @@ fn monotone_and4_netlist() -> Rc<Netlist<Cell>> {
 
 fn monotone_or_netlist() -> Rc<Netlist<Cell>> {
     // Same shape as monotone_and_netlist but with OR gates
-    let nl = Netlist::new("top".to_string());
+    let nl = Netlist::new("top".into());
     let a = nl.insert_input(Net::new_logic("a".into()));
     let b = nl.insert_input(Net::new_logic("b".into()));
     let c = nl.insert_input(Net::new_logic("c".into()));
@@ -146,7 +146,7 @@ fn monotone_no_fold_netlist() -> Rc<Netlist<Cell>> {
     // a ─┬── AND3(inst_2_folded) ── y2
     // b ─┤
     // d ─┘
-    let nl = Netlist::new("top".to_string());
+    let nl = Netlist::new("top".into());
     let a = nl.insert_input(Net::new_logic("a".into()));
     let b = nl.insert_input(Net::new_logic("b".into()));
     let c = nl.insert_input(Net::new_logic("c".into()));
@@ -168,7 +168,7 @@ fn monotone_no_fold_netlist() -> Rc<Netlist<Cell>> {
 
 fn and_const0_netlist() -> Rc<Netlist<Cell>> {
     // AND(a, 0) = 0
-    let nl = Netlist::new("top".to_string());
+    let nl = Netlist::new("top".into());
     let a = nl.insert_input(Net::new_logic("a".into()));
     let gnd = nl
         .insert_constant(safety_net::Logic::False, "gnd".into())
@@ -182,7 +182,7 @@ fn and_const0_netlist() -> Rc<Netlist<Cell>> {
 
 fn and_const1_netlist() -> Rc<Netlist<Cell>> {
     // AND(a, 1) = a
-    let nl = Netlist::new("top".to_string());
+    let nl = Netlist::new("top".into());
     let a = nl.insert_input(Net::new_logic("a".into()));
     let vcc = nl
         .insert_constant(safety_net::Logic::True, "vcc".into())
@@ -196,7 +196,7 @@ fn and_const1_netlist() -> Rc<Netlist<Cell>> {
 
 fn or_const1_netlist() -> Rc<Netlist<Cell>> {
     // OR(a, 1) = 1
-    let nl = Netlist::new("top".to_string());
+    let nl = Netlist::new("top".into());
     let a = nl.insert_input(Net::new_logic("a".into()));
     let vcc = nl
         .insert_constant(safety_net::Logic::True, "vcc".into())
@@ -210,7 +210,7 @@ fn or_const1_netlist() -> Rc<Netlist<Cell>> {
 
 fn or_const0_netlist() -> Rc<Netlist<Cell>> {
     // OR(a, 0) = a
-    let nl = Netlist::new("top".to_string());
+    let nl = Netlist::new("top".into());
     let a = nl.insert_input(Net::new_logic("a".into()));
     let gnd = nl
         .insert_constant(safety_net::Logic::False, "gnd".into())
@@ -224,7 +224,7 @@ fn or_const0_netlist() -> Rc<Netlist<Cell>> {
 
 fn double_neg_netlist() -> Rc<Netlist<Cell>> {
     // NOT(NOT(a)) = a
-    let nl = Netlist::new("top".to_string());
+    let nl = Netlist::new("top".into());
     let a = nl.insert_input(Net::new_logic("a".into()));
     let inv1 = nl
         .insert_gate(Cell::new(CellType::INV, None), "inv1".into(), &[a])
@@ -239,7 +239,7 @@ fn double_neg_netlist() -> Rc<Netlist<Cell>> {
 
 fn double_neg_not_netlist() -> Rc<Netlist<Cell>> {
     // NOT(NOT(a)) using NOT cells
-    let nl = Netlist::new("top".to_string());
+    let nl = Netlist::new("top".into());
     let a = nl.insert_input(Net::new_logic("a".into()));
     let not1 = nl
         .insert_gate(Cell::new(CellType::NOT, None), "not1".into(), &[a])
@@ -254,7 +254,7 @@ fn double_neg_not_netlist() -> Rc<Netlist<Cell>> {
 
 fn single_inv_netlist() -> Rc<Netlist<Cell>> {
     // Single INV — should NOT fire
-    let nl = Netlist::new("top".to_string());
+    let nl = Netlist::new("top".into());
     let a = nl.insert_input(Net::new_logic("a".into()));
     let inv = nl
         .insert_gate(Cell::new(CellType::INV, None), "inv1".into(), &[a])
@@ -265,7 +265,7 @@ fn single_inv_netlist() -> Rc<Netlist<Cell>> {
 
 fn nand_const0_netlist() -> Rc<Netlist<Cell>> {
     // NAND(a, 0) = 1
-    let nl = Netlist::new("top".to_string());
+    let nl = Netlist::new("top".into());
     let a = nl.insert_input(Net::new_logic("a".into()));
     let gnd = nl
         .insert_constant(safety_net::Logic::False, "gnd".into())
@@ -279,7 +279,7 @@ fn nand_const0_netlist() -> Rc<Netlist<Cell>> {
 
 fn nand_const1_netlist() -> Rc<Netlist<Cell>> {
     // NAND(a, 1) = NOT(a)
-    let nl = Netlist::new("top".to_string());
+    let nl = Netlist::new("top".into());
     let a = nl.insert_input(Net::new_logic("a".into()));
     let vcc = nl
         .insert_constant(safety_net::Logic::True, "vcc".into())
@@ -293,7 +293,7 @@ fn nand_const1_netlist() -> Rc<Netlist<Cell>> {
 
 fn nor_const1_netlist() -> Rc<Netlist<Cell>> {
     // NOR(a, 1) = 0
-    let nl = Netlist::new("top".to_string());
+    let nl = Netlist::new("top".into());
     let a = nl.insert_input(Net::new_logic("a".into()));
     let vcc = nl
         .insert_constant(safety_net::Logic::True, "vcc".into())
@@ -307,7 +307,7 @@ fn nor_const1_netlist() -> Rc<Netlist<Cell>> {
 
 fn nor_const0_netlist() -> Rc<Netlist<Cell>> {
     // NOR(a, 0) = NOT(a)
-    let nl = Netlist::new("top".to_string());
+    let nl = Netlist::new("top".into());
     let a = nl.insert_input(Net::new_logic("a".into()));
     let gnd = nl
         .insert_constant(safety_net::Logic::False, "gnd".into())
