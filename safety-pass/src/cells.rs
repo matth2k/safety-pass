@@ -4,8 +4,10 @@
 
 */
 
-use safety_net::{DrivenNet, Identifier, Instantiable, Logic, Net, NetRef, Parameter, format_id};
-use std::{collections::HashMap, fmt, str::FromStr};
+use safety_net::{
+    DrivenNet, Identifier, Instantiable, Logic, Net, NetRef, Netlist, Parameter, format_id,
+};
+use std::{collections::HashMap, fmt, rc::Rc, str::FromStr};
 
 /// A logic cell type
 #[allow(missing_docs)]
@@ -449,6 +451,165 @@ impl Instantiable for Cell {
     }
 }
 
+/// A uniquified netlist that can be instantiated
+#[derive(Debug)]
+pub struct ModInst<I: Instantiable> {
+    name: Identifier,
+    inputs: Vec<Net>,
+    outputs: Vec<Net>,
+    netlist: Rc<Netlist<I>>,
+}
+
+impl<I: Instantiable> ModInst<I> {
+    /// Uniquify a netlist that can be instantiated.
+    /// **This deep clones the netlist**
+    pub fn new(netlist: &Rc<Netlist<I>>) -> Self {
+        let name = netlist.get_name().clone();
+        let inputs = netlist.get_input_ports().collect();
+        let outputs = netlist.get_output_ports();
+        Self {
+            name,
+            inputs,
+            outputs,
+            netlist: netlist.deep_clone(),
+        }
+    }
+
+    /// Unwraps the instantiable into the underlying netlist.
+    pub fn unwrap(self) -> Rc<Netlist<I>> {
+        self.netlist
+    }
+}
+
+impl<I: Instantiable> Clone for ModInst<I> {
+    fn clone(&self) -> Self {
+        Self::new(&self.netlist)
+    }
+}
+
+impl<I: Instantiable> Instantiable for ModInst<I> {
+    fn get_name(&self) -> &Identifier {
+        &self.name
+    }
+
+    fn get_input_ports(&self) -> impl IntoIterator<Item = &Net> {
+        &self.inputs
+    }
+
+    fn get_output_ports(&self) -> impl IntoIterator<Item = &Net> {
+        &self.outputs
+    }
+
+    fn has_parameter(&self, _id: &Identifier) -> bool {
+        false
+    }
+
+    fn get_parameter(&self, _id: &Identifier) -> Option<Parameter> {
+        None
+    }
+
+    fn set_parameter(&mut self, _id: &Identifier, _val: Parameter) -> Option<Parameter> {
+        panic!("Cannot set parameter on ModInst {}", self.get_name());
+    }
+
+    fn parameters(&self) -> impl Iterator<Item = (Identifier, Parameter)> {
+        std::iter::empty()
+    }
+
+    fn from_constant(_val: Logic) -> Option<Self> {
+        None
+    }
+
+    fn get_constant(&self) -> Option<Logic> {
+        None
+    }
+
+    fn is_seq(&self) -> bool {
+        self.netlist
+            .objects()
+            .any(|obj| obj.get_instance_type().is_some_and(|i| i.is_seq()))
+    }
+}
+
+/// Allow nesting of uniquefied netlists to be instantiated
+#[derive(Debug, Clone)]
+pub enum ModOrCell<I: Instantiable> {
+    /// An instantiation of un
+    ModInst(ModInst<ModOrCell<I>>),
+    /// A primitive cell
+    Cell(I),
+}
+
+impl<I: Instantiable> Instantiable for ModOrCell<I> {
+    fn get_name(&self) -> &Identifier {
+        match self {
+            Self::ModInst(m) => m.get_name(),
+            Self::Cell(c) => c.get_name(),
+        }
+    }
+
+    fn get_input_ports(&self) -> impl IntoIterator<Item = &Net> {
+        match self {
+            Self::ModInst(m) => m.inputs.iter().collect::<Vec<&Net>>(),
+            Self::Cell(c) => c.get_input_ports().into_iter().collect::<Vec<&Net>>(),
+        }
+    }
+
+    fn get_output_ports(&self) -> impl IntoIterator<Item = &Net> {
+        match self {
+            Self::ModInst(m) => m.outputs.iter().collect::<Vec<&Net>>(),
+            Self::Cell(c) => c.get_output_ports().into_iter().collect::<Vec<&Net>>(),
+        }
+    }
+
+    fn has_parameter(&self, id: &Identifier) -> bool {
+        match self {
+            Self::ModInst(m) => m.has_parameter(id),
+            Self::Cell(c) => c.has_parameter(id),
+        }
+    }
+
+    fn get_parameter(&self, id: &Identifier) -> Option<Parameter> {
+        match self {
+            Self::ModInst(m) => m.get_parameter(id),
+            Self::Cell(c) => c.get_parameter(id),
+        }
+    }
+
+    fn set_parameter(&mut self, id: &Identifier, val: Parameter) -> Option<Parameter> {
+        match self {
+            Self::ModInst(m) => m.set_parameter(id, val),
+            Self::Cell(c) => c.set_parameter(id, val),
+        }
+    }
+
+    fn parameters(&self) -> impl Iterator<Item = (Identifier, Parameter)> {
+        let v = match self {
+            Self::ModInst(m) => m.parameters().collect::<Vec<_>>(),
+            Self::Cell(c) => c.parameters().collect::<Vec<_>>(),
+        };
+        v.into_iter()
+    }
+
+    fn from_constant(val: Logic) -> Option<Self> {
+        I::from_constant(val).map(Self::Cell)
+    }
+
+    fn get_constant(&self) -> Option<Logic> {
+        match self {
+            Self::ModInst(m) => m.get_constant(),
+            Self::Cell(c) => c.get_constant(),
+        }
+    }
+
+    fn is_seq(&self) -> bool {
+        match self {
+            Self::ModInst(m) => m.is_seq(),
+            Self::Cell(c) => c.is_seq(),
+        }
+    }
+}
+
 /// Returns the underling primitive variant associated with this object
 pub trait Primitive {
     /// Get the primitive cell type
@@ -467,9 +628,34 @@ impl Primitive for DrivenNet<Cell> {
     }
 }
 
+impl Primitive for NetRef<ModOrCell<Cell>> {
+    fn get_ptype(&self) -> Option<CellType> {
+        self.get_instance_type().and_then(|t| match &*t {
+            ModOrCell::ModInst(_) => None,
+            ModOrCell::Cell(c) => Some(c.get_type()),
+        })
+    }
+}
+
+impl Primitive for DrivenNet<ModOrCell<Cell>> {
+    fn get_ptype(&self) -> Option<CellType> {
+        self.get_instance_type().and_then(|t| match &*t {
+            ModOrCell::ModInst(_) => None,
+            ModOrCell::Cell(c) => Some(c.get_type()),
+        })
+    }
+}
+
 #[cfg(feature = "id")]
 impl nl_compiler::FromId for Cell {
     fn from_id(s: &Identifier) -> Result<Self, safety_net::Error> {
         CellType::from_str(&s.to_string()).map(|ctype| Cell::new(ctype, None))
+    }
+}
+
+#[cfg(feature = "id")]
+impl nl_compiler::FromId for ModOrCell<Cell> {
+    fn from_id(s: &Identifier) -> Result<Self, safety_net::Error> {
+        CellType::from_str(&s.to_string()).map(|ctype| ModOrCell::Cell(Cell::new(ctype, None)))
     }
 }
