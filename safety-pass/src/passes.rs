@@ -5,7 +5,9 @@
 */
 
 use crate::{Cell, Pass};
-use safety_net::{Error, Identifier, Instantiable, Netlist, format_id, rewriter::NetMapper};
+use safety_net::{
+    Error, FanOutTable, Identifier, Instantiable, Netlist, format_id, rewriter::NetMapper,
+};
 use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
@@ -193,11 +195,110 @@ impl<I: Instantiable> Pass for CellStats<I> {
         let mut res = String::new();
         let mut total = 0;
         for (cell, count) in pairs.into_iter().rev() {
-            res += &format!("\t{}:\t\t{}\n", cell, count);
+            res += &format!("\t{}:\t{}\n", cell, count);
             total += count;
         }
-        res += &format!("\n\tTotal:\t\t{}\n", total);
+        res += &format!("\n\tTotal:\t{}\n", total);
         Ok(format!("Cell Usage:\n{res}"))
+    }
+}
+
+/// List all nets in the netlist
+pub struct ListNets<I: Instantiable>(pub std::marker::PhantomData<I>);
+
+impl<I: Instantiable> fmt::Display for ListNets<I> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ListNets")
+    }
+}
+
+impl<I: Instantiable> fmt::Debug for ListNets<I> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ListNets")
+    }
+}
+
+impl<I: Instantiable> Pass for ListNets<I> {
+    type I = I;
+
+    fn run(&self, netlist: &Rc<Netlist<Self::I>>) -> Result<String, Error> {
+        let mut buf = "Name\tFanin\tFanout\tDrivers\tUsers\n".to_string();
+        let table = netlist.get_analysis::<FanOutTable<_>>()?;
+        for node in netlist.objects() {
+            let fi = node
+                .inputs()
+                .filter_map(|i| i.get_driver())
+                .collect::<Vec<_>>();
+            for output in node.outputs() {
+                let fo = table.get_users(&output).collect::<Vec<_>>();
+                buf += &format!(
+                    "{}\t{}\t{}\t",
+                    output.as_net().get_identifier(),
+                    fi.len(),
+                    fo.len()
+                );
+                for (i, driver) in fi.iter().enumerate() {
+                    buf += &format!("{}", driver.as_net().get_identifier());
+                    if i != fi.len() - 1 {
+                        buf += ", ";
+                    }
+                }
+                buf += "\t";
+                let l = fo.len();
+                for (i, user) in fo.into_iter().enumerate() {
+                    let port_name = user.get_port().take_identifier();
+                    buf += &format!(
+                        "{}:{}",
+                        user.unwrap().get_instance_name().unwrap(),
+                        port_name
+                    );
+                    if i != l - 1 {
+                        buf += ", ";
+                    }
+                }
+                buf += "\n";
+            }
+        }
+        Ok(buf)
+    }
+}
+
+/// Strip all cell attributes except 'dont_touch` and `keep`
+pub struct StripAttributes<I: Instantiable>(pub std::marker::PhantomData<I>);
+
+impl<I: Instantiable> fmt::Display for StripAttributes<I> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "StripAttributes")
+    }
+}
+
+impl<I: Instantiable> fmt::Debug for StripAttributes<I> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "StripAttributes")
+    }
+}
+
+impl<I: Instantiable> Pass for StripAttributes<I> {
+    type I = I;
+
+    fn run(&self, netlist: &Rc<Netlist<Self::I>>) -> Result<String, Error> {
+        const ATTRS: [&str; 2] = ["dont_touch", "keep"];
+
+        let mut i = 0;
+        for obj in netlist.objects() {
+            let mut modified = false;
+            for a in obj.attributes() {
+                let k = a.key();
+                if !ATTRS.contains(&k.as_str()) {
+                    obj.clear_attribute(k);
+                    modified = true;
+                }
+            }
+            if modified {
+                i += 1;
+            }
+        }
+        Ok(format!("Stripped attributes from {i} cells"))
     }
 }
 
@@ -366,8 +467,12 @@ register_passes!(BasicPasses<Cell>;
     FoldAllPatterns,
     /// Insert a pair of inverters at every point in the netlist.
     InsertInv,
+    /// List all nets in the netlist
+    ListNets<Cell>,
     /// A dummy pass that emits the Verilog of the netlist.
     PrintVerilog<Cell>,
     /// Renames nets/instances sequentially __0__, __1__, ...
     RenameNets<Cell>,
+    /// Strip all cell attributes except 'dont_touch` and `keep`
+    StripAttributes<Cell>,
 );
