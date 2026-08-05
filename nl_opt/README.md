@@ -49,17 +49,20 @@ Then run `nl_opt ex.v --passes clean,print-verilog`
 ```
 Netlist optimization debugging tool
 
-Usage: nl_opt [OPTIONS] [INPUT]
+Usage: nl_opt [OPTIONS] [INPUT] [OUTPUT]
 
 Arguments:
   [INPUT]
           Verilog file to read from (or use stdin)
 
+  [OUTPUT]
+          Optional Verilog file to output to
+
 Options:
   -x, --no-xilinx
           Do not parse with Xilinx-specific port names
 
-      --verify
+      --verify-each
           Verify after every pass (not just the last)
 
   -v, --verbose
@@ -69,10 +72,18 @@ Options:
           A list of passes to run in order
 
           Possible values:
-          - print-verilog: A dummy pass that emits the Verilog of the netlist
-          - dot-graph:     A pass that prints the dot graph of the netlist
-          - clean:         A pass that cleans the netlist
-          - rename-nets:   A pass that renames wires and instances sequentially
+          - cell-stats:        Prints stats on all the cell types in the netlist
+          - clean:             A pass that cleans the netlist
+          - dot-graph:         A pass that prints the dot graph of the netlist
+          - fold-all-patterns: Runs all built-in patterns to a fixed point
+          - insert-inv:        Insert a pair of inverters at every node
+          - list-nets:         List all nets in the netlist
+          - print-verilog:     A dummy pass that emits the Verilog of the netlist
+          - rename-nets:       Renames nets/instances sequentially 
+          - strip-attributes:  Strip cell attributes except 'dont_touch` and `keep`
+
+      --non-ansi
+          Emit the verilog in non-ANSI style
 
   -h, --help
           Print help (see a summary with '-h')
