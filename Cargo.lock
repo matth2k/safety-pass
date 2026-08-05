@@ -265,7 +265,7 @@ dependencies = [
 
 [[package]]
 name = "nl_opt"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "clap",
  "log",
@@ -482,7 +482,7 @@ dependencies = [
 
 [[package]]
 name = "safety-pass"
-version = "0.4.10"
+version = "0.4.11"
 dependencies = [
  "clap",
  "log",
