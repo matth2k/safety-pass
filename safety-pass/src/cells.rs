@@ -535,7 +535,7 @@ impl<I: Instantiable> Instantiable for ModInst<I> {
 #[derive(Debug, Clone)]
 pub enum ModOrCell<I: Instantiable> {
     /// An instantiation of un
-    ModInst(ModInst<I>),
+    ModInst(ModInst<ModOrCell<I>>),
     /// A primitive cell
     Cell(I),
 }

@@ -17,7 +17,7 @@ fn passthru_nl<I: Instantiable>(id: Identifier) -> Rc<Netlist<I>> {
 #[test]
 fn test_nesting() {
     let outer: Rc<Netlist<Inst>> = passthru_nl("outer".into());
-    let inner: Rc<Netlist<Cell>> = passthru_nl("inner".into());
+    let inner: Rc<Netlist<Inst>> = passthru_nl("inner".into());
 
     let inst = ModOrCell::ModInst(ModInst::new(&inner));
 
