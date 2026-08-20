@@ -406,12 +406,12 @@ impl Instantiable for Cell {
         &self.name
     }
 
-    fn get_input_ports(&self) -> impl IntoIterator<Item = &Net> {
-        self.inputs.iter()
+    fn get_input_ports(&self) -> &[Net] {
+        &self.inputs
     }
 
-    fn get_output_ports(&self) -> impl IntoIterator<Item = &Net> {
-        self.outputs.iter()
+    fn get_output_ports(&self) -> &[Net] {
+        &self.outputs
     }
 
     fn has_parameter(&self, id: &Identifier) -> bool {
@@ -426,8 +426,8 @@ impl Instantiable for Cell {
         self.params.insert(id.clone(), val)
     }
 
-    fn parameters(&self) -> impl Iterator<Item = (Identifier, Parameter)> {
-        self.params.clone().into_iter()
+    fn parameters(&self) -> Vec<(Identifier, Parameter)> {
+        self.params.clone().into_iter().collect()
     }
 
     fn from_constant(val: Logic) -> Option<Self> {
@@ -451,26 +451,31 @@ impl Instantiable for Cell {
     }
 }
 
-/// A uniquified netlist that can be instantiated
+/// A uniquified netlist instantiated as a module
 #[derive(Debug)]
 pub struct ModInst<I: Instantiable> {
     name: Identifier,
     inputs: Vec<Net>,
     outputs: Vec<Net>,
+    seq: bool,
     netlist: Rc<Netlist<I>>,
 }
 
 impl<I: Instantiable> ModInst<I> {
     /// Uniquify a netlist that can be instantiated.
     /// **This deep clones the netlist**
-    pub fn new(netlist: &Rc<Netlist<I>>) -> Self {
+    pub fn new(netlist: &Netlist<I>) -> Self {
         let name = netlist.get_name().clone();
         let inputs = netlist.get_input_ports().collect();
         let outputs = netlist.get_output_ports();
+        let seq = netlist
+            .objects()
+            .any(|obj| obj.get_instance_type().is_some_and(|i| i.is_seq()));
         Self {
             name,
             inputs,
             outputs,
+            seq,
             netlist: netlist.deep_clone(),
         }
     }
@@ -492,11 +497,11 @@ impl<I: Instantiable> Instantiable for ModInst<I> {
         &self.name
     }
 
-    fn get_input_ports(&self) -> impl IntoIterator<Item = &Net> {
+    fn get_input_ports(&self) -> &[Net] {
         &self.inputs
     }
 
-    fn get_output_ports(&self) -> impl IntoIterator<Item = &Net> {
+    fn get_output_ports(&self) -> &[Net] {
         &self.outputs
     }
 
@@ -509,11 +514,11 @@ impl<I: Instantiable> Instantiable for ModInst<I> {
     }
 
     fn set_parameter(&mut self, _id: &Identifier, _val: Parameter) -> Option<Parameter> {
-        panic!("Cannot set parameter on ModInst {}", self.get_name());
+        panic!("Cannot set parameter on a module instance");
     }
 
-    fn parameters(&self) -> impl Iterator<Item = (Identifier, Parameter)> {
-        std::iter::empty()
+    fn parameters(&self) -> Vec<(Identifier, Parameter)> {
+        Vec::new()
     }
 
     fn from_constant(_val: Logic) -> Option<Self> {
@@ -525,19 +530,32 @@ impl<I: Instantiable> Instantiable for ModInst<I> {
     }
 
     fn is_seq(&self) -> bool {
-        self.netlist
-            .objects()
-            .any(|obj| obj.get_instance_type().is_some_and(|i| i.is_seq()))
+        self.seq
     }
 }
 
-/// Allow nesting of uniquefied netlists to be instantiated
+/// An instance wrapper enum around primitive or other netlists
 #[derive(Debug, Clone)]
 pub enum ModOrCell<I: Instantiable> {
-    /// An instantiation of un
+    /// An instantiation of a unique netlist
     ModInst(ModInst<ModOrCell<I>>),
     /// A primitive cell
     Cell(I),
+}
+
+impl<I: Instantiable> From<I> for ModOrCell<I>
+where
+    I: Instantiable,
+{
+    fn from(cell: I) -> Self {
+        Self::Cell(cell)
+    }
+}
+
+impl<I: Instantiable> From<&Netlist<ModOrCell<I>>> for ModOrCell<I> {
+    fn from(netlist: &Netlist<ModOrCell<I>>) -> Self {
+        Self::ModInst(ModInst::new(netlist))
+    }
 }
 
 impl<I: Instantiable> Instantiable for ModOrCell<I> {
@@ -548,17 +566,17 @@ impl<I: Instantiable> Instantiable for ModOrCell<I> {
         }
     }
 
-    fn get_input_ports(&self) -> impl IntoIterator<Item = &Net> {
+    fn get_input_ports(&self) -> &[Net] {
         match self {
-            Self::ModInst(m) => m.inputs.iter().collect::<Vec<&Net>>(),
-            Self::Cell(c) => c.get_input_ports().into_iter().collect::<Vec<&Net>>(),
+            Self::ModInst(m) => m.get_input_ports(),
+            Self::Cell(c) => c.get_input_ports(),
         }
     }
 
-    fn get_output_ports(&self) -> impl IntoIterator<Item = &Net> {
+    fn get_output_ports(&self) -> &[Net] {
         match self {
-            Self::ModInst(m) => m.outputs.iter().collect::<Vec<&Net>>(),
-            Self::Cell(c) => c.get_output_ports().into_iter().collect::<Vec<&Net>>(),
+            Self::ModInst(m) => m.get_output_ports(),
+            Self::Cell(c) => c.get_output_ports(),
         }
     }
 
@@ -583,12 +601,11 @@ impl<I: Instantiable> Instantiable for ModOrCell<I> {
         }
     }
 
-    fn parameters(&self) -> impl Iterator<Item = (Identifier, Parameter)> {
-        let v = match self {
-            Self::ModInst(m) => m.parameters().collect::<Vec<_>>(),
-            Self::Cell(c) => c.parameters().collect::<Vec<_>>(),
-        };
-        v.into_iter()
+    fn parameters(&self) -> Vec<(Identifier, Parameter)> {
+        match self {
+            Self::ModInst(m) => m.parameters(),
+            Self::Cell(c) => c.parameters(),
+        }
     }
 
     fn from_constant(val: Logic) -> Option<Self> {
