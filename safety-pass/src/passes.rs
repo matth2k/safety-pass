@@ -397,6 +397,61 @@ impl Pass for InsertInv {
     }
 }
 
+/// Insert a scan chain along the FDREs
+#[derive(Debug)]
+pub struct InsertScanChain;
+
+impl fmt::Display for InsertScanChain {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "InsertScanChain")
+    }
+}
+
+impl Pass for InsertScanChain {
+    type I = Cell;
+    fn run(&self, netlist: &Rc<Netlist<Self::I>>) -> Result<String, Error> {
+        use crate::CellType;
+
+        fn mux() -> Cell {
+            Cell::new(CellType::MUX, None)
+        }
+
+        let mut n = 0;
+
+        let scan_en = netlist.insert_input("scan_en".into());
+        let mut iter = netlist.matches(|i| i.get_type() == CellType::FDRE);
+        let Some(prev) = iter.next() else {
+            return Ok("No FDREs found, no scan chain inserted".into());
+        };
+
+        let mut prev = prev.get_output(0);
+
+        for reg in iter {
+            let input = reg.find_input(&"D".into()).unwrap();
+            let Some(driver) = input.get_driver() else {
+                continue;
+            };
+
+            let rmux = netlist
+                .insert_gate(
+                    mux(),
+                    reg.get_instance_name().unwrap() + format_id!("scan_mux_{n}"),
+                    &[scan_en.clone(), prev, driver],
+                )?
+                .get_output(0);
+
+            input.connect(rmux);
+            prev = reg.get_output(0);
+
+            n += 1;
+        }
+
+        prev.expose_with_name("scan_out".into());
+
+        Ok(format!("Inserted a scan chain of length {}", n))
+    }
+}
+
 /// Returns `Some(I)` if the cell should be replaced with something else
 type Remap<I> = dyn Fn(&I) -> Option<I> + 'static;
 
@@ -467,6 +522,8 @@ register_passes!(BasicPasses<Cell>;
     FoldAllPatterns,
     /// Insert a pair of inverters at every point in the netlist.
     InsertInv,
+    /// Insert a scan chain along the FDREs
+    InsertScanChain,
     /// List all nets in the netlist
     ListNets<Cell>,
     /// A dummy pass that emits the Verilog of the netlist.
