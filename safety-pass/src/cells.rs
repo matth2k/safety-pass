@@ -515,15 +515,23 @@ impl<I: Instantiable> ModInst<I> {
     }
 
     /// Inlines `self`'s unique netlist into `netlist` using `drivers` as inputs
+    /// On success, returns a vector of the outputs nets from the inlined netlist.
     pub fn inline_into<O: Instantiable + From<I>>(
         &self,
         netlist: &Rc<Netlist<O>>,
         prefix: Option<Identifier>,
-        drivers: Vec<DrivenNet<O>>,
-    ) -> HashMap<DrivenNet<I>, DrivenNet<O>> {
+        drivers: &[DrivenNet<O>],
+    ) -> Result<Vec<DrivenNet<O>>, safety_net::Error> {
+        if drivers.len() != self.inputs.len() {
+            return Err(safety_net::Error::ArgumentMismatch(
+                self.inputs.len(),
+                drivers.len(),
+            ));
+        }
+
         let mut map = HashMap::new();
         for (k, v) in self.netlist.inputs().zip(drivers) {
-            map.insert(k, v);
+            map.insert(k, v.clone());
         }
 
         let mut cells = Vec::new();
@@ -544,7 +552,12 @@ impl<I: Instantiable> ModInst<I> {
             }
         }
 
-        map
+        let mut outputs = Vec::new();
+        for (output, _) in self.netlist.outputs() {
+            outputs.push(map[&output].clone());
+        }
+
+        Ok(outputs)
     }
 }
 
