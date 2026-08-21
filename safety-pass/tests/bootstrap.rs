@@ -148,7 +148,8 @@ fn test_inline() {
     let inst = ModInst::new(&nl);
 
     for i in 0..2 {
-        inst.inline_into(&nl, Some(format_id!("inlined_{i}")), inputs.clone());
+        let res = inst.inline_into(&nl, Some(format_id!("inlined_{i}")), &inputs);
+        assert!(res.is_ok());
     }
 
     assert_verilog_eq!(
