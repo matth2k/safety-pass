@@ -520,7 +520,7 @@ impl<I: Instantiable> ModInst<I> {
         &self,
         netlist: &Rc<Netlist<O>>,
         prefix: Option<Identifier>,
-        drivers: &[DrivenNet<O>],
+        drivers: &[Option<DrivenNet<O>>],
     ) -> Result<Vec<DrivenNet<O>>, safety_net::Error> {
         if drivers.len() != self.inputs.len() {
             return Err(safety_net::Error::ArgumentMismatch(
@@ -531,7 +531,9 @@ impl<I: Instantiable> ModInst<I> {
 
         let mut map = HashMap::new();
         for (k, v) in self.netlist.inputs().zip(drivers) {
-            map.insert(k, v.clone());
+            if let Some(v) = v {
+                map.insert(k, v.clone());
+            }
         }
 
         let mut cells = Vec::new();
@@ -819,6 +821,37 @@ impl Primitive for DrivenNet<ModOrCell<Cell>> {
             ModOrCell::Cell(c) => Some(c.get_type()),
         })
     }
+}
+
+/// Recursively inlines a hierarchical netlist
+pub fn inline_recursive<I: Instantiable>(
+    netlist: &Rc<Netlist<ModOrCell<I>>>,
+) -> Result<Rc<Netlist<ModOrCell<I>>>, safety_net::Error> {
+    let base = netlist.deep_clone();
+
+    let mut pairs = Vec::new();
+
+    for inst in base.objects() {
+        if let Some(m) = inst.get_instance_type()
+            && let ModOrCell::ModInst(m) = &*m
+        {
+            let recur = inline_recursive(&m.netlist)?;
+            let new_mod = ModInst::new(&recur);
+            let drivers = inst.inputs().map(|i| i.get_driver()).collect::<Vec<_>>();
+            let outs = new_mod.inline_into(&base, inst.get_instance_name(), &drivers)?;
+            for p in inst.outputs().zip(outs) {
+                pairs.push(p);
+            }
+        }
+    }
+
+    for (o, n) in pairs {
+        base.replace_net_uses(o, &n)?;
+    }
+
+    base.clean()?;
+
+    Ok(base)
 }
 
 #[cfg(feature = "id")]
