@@ -513,6 +513,39 @@ impl<I: Instantiable> ModInst<I> {
     pub fn unwrap(self) -> Rc<Netlist<I>> {
         self.netlist
     }
+
+    /// Inlines `self`'s unique netlist into `netlist` using `drivers` as inputs
+    pub fn inline_into<O: Instantiable + From<I>>(
+        &self,
+        netlist: &Rc<Netlist<O>>,
+        prefix: Option<Identifier>,
+        drivers: Vec<DrivenNet<O>>,
+    ) -> HashMap<DrivenNet<I>, DrivenNet<O>> {
+        let mut map = HashMap::new();
+        for (k, v) in self.netlist.inputs().zip(drivers) {
+            map.insert(k, v);
+        }
+
+        let mut cells = Vec::new();
+        for obj in self.netlist.objects() {
+            if obj.is_an_input() {
+                continue;
+            }
+            cells.push((netlist.clone_into(&obj, prefix.clone(), &mut map), obj));
+        }
+
+        for (v, k) in cells {
+            for (inpk, inpv) in k.inputs().zip(v.inputs()) {
+                if let Some(driver) = inpk.get_driver()
+                    && let Some(remap) = map.get(&driver).cloned()
+                {
+                    inpv.connect(remap);
+                }
+            }
+        }
+
+        map
+    }
 }
 
 impl<I: Instantiable> Clone for ModInst<I> {

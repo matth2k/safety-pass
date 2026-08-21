@@ -1,9 +1,34 @@
-use safety_net::{Gate, Identifier, Instantiable, Net, Netlist, Parameter, assert_verilog_eq};
+use safety_net::{
+    Gate, Identifier, Instantiable, Net, Netlist, Parameter, assert_verilog_eq, format_id,
+};
 use safety_pass::{ModInst, ModOrCell};
 use std::collections::HashMap;
 use std::rc::Rc;
 
 type Inst = ModOrCell<Gate>;
+
+fn and() -> Gate {
+    Gate::new_logical("AND2".into(), vec!["A".into(), "B".into()], "Y".into())
+}
+
+fn inv() -> Gate {
+    Gate::new_logical("INV".into(), vec!["A".into()], "Y".into())
+}
+
+fn simple_nl() -> Rc<Netlist<Gate>> {
+    let nl = Netlist::new("simple".into());
+
+    let a = nl.insert_input(Net::new_logic("a".into()));
+    let b = nl.insert_input(Net::new_logic("b".into()));
+    let y = nl.insert_gate(and(), "and_inst".into(), &[a, b]).unwrap();
+
+    let y_inv = nl
+        .insert_gate(inv(), "inv_inst".into(), &[y.into()])
+        .unwrap();
+    y_inv.expose_with_name("y".into());
+
+    nl
+}
 
 fn passthru_nl<I: Instantiable>(id: Identifier) -> Rc<Netlist<I>> {
     let nl = Netlist::new(id);
@@ -111,6 +136,65 @@ fn test_clone_into_inst_into() {
 
            assign y = x;
 
+         endmodule"
+            .to_string()
+    );
+}
+
+#[test]
+fn test_inline() {
+    let nl = simple_nl();
+    let inputs = nl.inputs().collect::<Vec<_>>();
+    let inst = ModInst::new(&nl);
+
+    for i in 0..2 {
+        inst.inline_into(&nl, Some(format_id!("inlined_{i}")), inputs.clone());
+    }
+
+    assert_verilog_eq!(
+        nl.to_string(),
+        "module simple (
+           a,
+           b,
+           y
+         );
+           input wire a;
+           input wire b;
+           output wire y;
+           wire and_inst_Y;
+           wire inlined_0_and_inst_Y;
+           wire inlined_0_inv_inst_Y;
+           wire inlined_1_and_inst_Y;
+           wire inlined_1_inv_inst_Y;
+           wire inv_inst_Y;
+           AND2 and_inst (
+             .A(a),
+             .B(b),
+             .Y(and_inst_Y)
+           );
+           INV inv_inst (
+             .A(and_inst_Y),
+             .Y(inv_inst_Y)
+           );
+           AND2 inlined_0_and_inst (
+             .A(a),
+             .B(b),
+             .Y(inlined_0_and_inst_Y)
+           );
+           INV inlined_0_inv_inst (
+             .A(inlined_0_and_inst_Y),
+             .Y(inlined_0_inv_inst_Y)
+           );
+           AND2 inlined_1_and_inst (
+             .A(a),
+             .B(b),
+             .Y(inlined_1_and_inst_Y)
+           );
+           INV inlined_1_inv_inst (
+             .A(inlined_1_and_inst_Y),
+             .Y(inlined_1_inv_inst_Y)
+           );
+           assign y = inv_inst_Y;
          endmodule"
             .to_string()
     );
