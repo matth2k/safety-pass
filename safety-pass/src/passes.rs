@@ -452,6 +452,49 @@ impl Pass for InsertScanChain {
     }
 }
 
+/// Explicity inverts the clock of a cell that has a `IS_CLK_INVERTED` param
+#[derive(Debug)]
+pub struct ExtractInvClock;
+
+impl fmt::Display for ExtractInvClock {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ExtractInvClock")
+    }
+}
+
+impl Pass for ExtractInvClock {
+    type I = Cell;
+    fn run(&self, netlist: &Rc<Netlist<Self::I>>) -> Result<String, Error> {
+        use crate::CellType;
+        use safety_net::Parameter;
+
+        for cell in netlist.matches(|p| p.has_parameter(&"IS_CLK_INVERTED".into())) {
+            let Some(port) = cell.find_input(&"CLK".into()) else {
+                continue;
+            };
+
+            let Some(driver) = port.get_driver() else {
+                continue;
+            };
+
+            let inverter = netlist.insert_gate(
+                Cell::new(CellType::INV, None),
+                cell.get_instance_name().unwrap()
+                    + port.get_port().take_identifier()
+                    + "inv".into(),
+                &[driver],
+            )?;
+
+            port.connect(inverter.into());
+            cell.get_instance_type_mut()
+                .unwrap()
+                .set_parameter(&"IS_CLK_INVERTED".into(), Parameter::from_bool(false));
+        }
+
+        Ok("Explicitly inverted all inverted pins".to_string())
+    }
+}
+
 /// Returns `Some(I)` if the cell should be replaced with something else
 type Remap<I> = dyn Fn(&I) -> Option<I> + 'static;
 
@@ -518,6 +561,8 @@ register_passes!(BasicPasses<Cell>;
     /// A pass that prints the dot graph of the netlist.
     #[cfg(feature = "graph")]
     DotGraph<Cell>,
+    /// Explicity inverts the clock of a cell that has a `IS_CLK_INVERTED` param
+    ExtractInvClock,
     /// A pass that runs all built-in patterns to a fixed point.
     FoldAllPatterns,
     /// Insert a pair of inverters at every point in the netlist.
