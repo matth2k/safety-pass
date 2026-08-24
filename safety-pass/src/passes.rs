@@ -561,7 +561,7 @@ register_passes!(BasicPasses<Cell>;
     /// A pass that prints the dot graph of the netlist.
     #[cfg(feature = "graph")]
     DotGraph<Cell>,
-    /// Explicity inverts the clock of a cell that has a `IS_CLK_INVERTED` param
+    /// Inverts the clock of a cell that has a `IS_CLK_INVERTED` param
     ExtractInvClock,
     /// A pass that runs all built-in patterns to a fixed point.
     FoldAllPatterns,

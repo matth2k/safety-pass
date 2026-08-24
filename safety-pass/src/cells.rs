@@ -21,6 +21,7 @@ pub enum CellType {
     XNOR,
     NOT,
     INV,
+    BUF,
     AND2,
     NAND2,
     OR2,
@@ -77,7 +78,7 @@ impl CellType {
             Self::NOR2 | Self::NOR => 2,
             Self::XOR2 | Self::XOR => 2,
             Self::XNOR2 | Self::XNOR => 2,
-            Self::NOT | Self::INV | Self::LUT1 => 1,
+            Self::NOT | Self::INV | Self::LUT1 | Self::BUF => 1,
             Self::MUX | Self::MUX2 | Self::MUXF7 | Self::MUXF8 | Self::MUXF9 => 3,
             Self::AND3 | Self::NAND3 | Self::OR3 | Self::NOR3 => 3,
             Self::AND4 | Self::NAND4 | Self::OR4 | Self::NOR4 => 4,
@@ -111,7 +112,7 @@ impl CellType {
             | Self::XNOR2 => {
                 vec!["A".into(), "B".into()]
             }
-            Self::INV | Self::NOT => vec!["A".into()],
+            Self::INV | Self::NOT | Self::BUF => vec!["A".into()],
             Self::AND2 | Self::NAND2 | Self::OR2 | Self::NOR2 => {
                 vec!["A1".into(), "A2".into()]
             }
@@ -200,7 +201,7 @@ impl CellType {
             Self::VCC => vec!["P".into()],
             Self::GND => vec!["G".into()],
             Self::FDRE | Self::FDSE | Self::FDPE | Self::FDCE => vec!["Q".into()],
-            Self::MUX2 | Self::XOR2 => vec!["Z".into()],
+            Self::MUX2 | Self::XOR2 | Self::BUF => vec!["Z".into()],
             Self::FA | Self::HA => vec!["CO".into(), "S".into()],
             _ => vec!["ZN".into()],
         }
@@ -251,6 +252,7 @@ impl CellType {
             Self::AOI221 => Some(1.596),
             Self::AOI222 => Some(2.128),
             Self::INV => Some(0.532),
+            Self::BUF => Some(0.798),
             Self::MUX2 => Some(1.862),
             Self::NAND2 => Some(0.798),
             Self::NAND3 => Some(1.064),
@@ -287,6 +289,7 @@ impl FromStr for CellType {
 
         match pre {
             "INV" => Ok(Self::INV),
+            "BUF" => Ok(Self::BUF),
             "MUX" => Ok(Self::MUX),
             "AND2" => Ok(Self::AND2),
             "NAND2" => Ok(Self::NAND2),
