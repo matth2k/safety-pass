@@ -778,13 +778,26 @@ impl Primitive for DrivenNet<ModOrCell<Cell>> {
 #[cfg(feature = "id")]
 impl nl_compiler::FromId for Cell {
     fn from_id(s: &Identifier) -> Result<Self, safety_net::Error> {
-        CellType::from_str(&s.to_string()).map(|ctype| Cell::new(ctype, None))
+        let string = s.to_string();
+        let (cell, size) = match string.split_once("_X") {
+            Some((p, s)) => (p, Some(s)),
+            None => (string.as_str(), None),
+        };
+
+        let ctype = CellType::from_str(cell)?;
+        let size = match size {
+            Some(s) => Some(s.parse::<usize>().map_err(|_| {
+                safety_net::Error::ParseError(format!("Invalid size for cell {}: {}", cell, s))
+            })?),
+            None => None,
+        };
+        Ok(Cell::new(ctype, size))
     }
 }
 
 #[cfg(feature = "id")]
 impl nl_compiler::FromId for ModOrCell<Cell> {
     fn from_id(s: &Identifier) -> Result<Self, safety_net::Error> {
-        CellType::from_str(&s.to_string()).map(|ctype| ModOrCell::Cell(Cell::new(ctype, None)))
+        Ok(ModOrCell::Cell(Cell::from_id(s)?))
     }
 }
