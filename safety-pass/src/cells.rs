@@ -21,6 +21,7 @@ pub enum CellType {
     XNOR,
     NOT,
     INV,
+    BUF,
     AND2,
     NAND2,
     OR2,
@@ -63,6 +64,8 @@ pub enum CellType {
     FDPE,
     FDCE,
     MAJ3,
+    HA,
+    FA,
 }
 
 impl CellType {
@@ -75,7 +78,7 @@ impl CellType {
             Self::NOR2 | Self::NOR => 2,
             Self::XOR2 | Self::XOR => 2,
             Self::XNOR2 | Self::XNOR => 2,
-            Self::NOT | Self::INV | Self::LUT1 => 1,
+            Self::NOT | Self::INV | Self::LUT1 | Self::BUF => 1,
             Self::MUX | Self::MUX2 | Self::MUXF7 | Self::MUXF8 | Self::MUXF9 => 3,
             Self::AND3 | Self::NAND3 | Self::OR3 | Self::NOR3 => 3,
             Self::AND4 | Self::NAND4 | Self::OR4 | Self::NOR4 => 4,
@@ -91,6 +94,8 @@ impl CellType {
             Self::VCC | Self::GND => 0,
             Self::FDRE | Self::FDSE | Self::FDPE | Self::FDCE => 4,
             Self::MAJ3 => 3,
+            Self::HA => 2,
+            Self::FA => 3,
         }
     }
 
@@ -107,7 +112,7 @@ impl CellType {
             | Self::XNOR2 => {
                 vec!["A".into(), "B".into()]
             }
-            Self::INV | Self::NOT => vec!["A".into()],
+            Self::INV | Self::NOT | Self::BUF => vec!["A".into()],
             Self::AND2 | Self::NAND2 | Self::OR2 | Self::NOR2 => {
                 vec!["A1".into(), "A2".into()]
             }
@@ -168,6 +173,8 @@ impl CellType {
             Self::FDSE => vec!["D".into(), "C".into(), "CE".into(), "S".into()],
             Self::FDPE => vec!["D".into(), "C".into(), "CE".into(), "PRE".into()],
             Self::FDCE => vec!["D".into(), "C".into(), "CE".into(), "CLR".into()],
+            Self::HA => vec!["A".into(), "B".into()],
+            Self::FA => vec!["A".into(), "B".into(), "CI".into()],
         }
     }
 
@@ -194,7 +201,8 @@ impl CellType {
             Self::VCC => vec!["P".into()],
             Self::GND => vec!["G".into()],
             Self::FDRE | Self::FDSE | Self::FDPE | Self::FDCE => vec!["Q".into()],
-            Self::MUX2 | Self::XOR2 => vec!["Z".into()],
+            Self::MUX2 | Self::XOR2 | Self::BUF => vec!["Z".into()],
+            Self::FA | Self::HA => vec!["CO".into(), "S".into()],
             _ => vec!["ZN".into()],
         }
     }
@@ -244,6 +252,7 @@ impl CellType {
             Self::AOI221 => Some(1.596),
             Self::AOI222 => Some(2.128),
             Self::INV => Some(0.532),
+            Self::BUF => Some(0.798),
             Self::MUX2 => Some(1.862),
             Self::NAND2 => Some(0.798),
             Self::NAND3 => Some(1.064),
@@ -262,6 +271,8 @@ impl CellType {
             Self::XNOR2 => Some(1.596),
             Self::XOR2 => Some(1.596),
             Self::MAJ3 => Some(1.064),
+            Self::HA => Some(2.66),
+            Self::FA => Some(4.256),
             _ => None,
         }
     }
@@ -278,6 +289,7 @@ impl FromStr for CellType {
 
         match pre {
             "INV" => Ok(Self::INV),
+            "BUF" => Ok(Self::BUF),
             "MUX" => Ok(Self::MUX),
             "AND2" => Ok(Self::AND2),
             "NAND2" => Ok(Self::NAND2),
@@ -327,6 +339,8 @@ impl FromStr for CellType {
             "FDPE" => Ok(Self::FDPE),
             "FDCE" => Ok(Self::FDCE),
             "MAJ3" => Ok(Self::MAJ3),
+            "HA" => Ok(Self::HA),
+            "FA" => Ok(Self::FA),
             _ => Err(safety_net::Error::ParseError(format!(
                 "Unknown cell type: {s}"
             ))),
@@ -399,6 +413,17 @@ impl Cell {
         net.set_identifier(name);
         self
     }
+
+    /// Returns the area of the cell if the cell type has a known area and size
+    pub fn get_area(&self) -> Option<f32> {
+        if let Some(min) = self.get_type().get_min_area()
+            && let Some(size) = self.size
+        {
+            Some(min * size as f32)
+        } else {
+            None
+        }
+    }
 }
 
 impl Instantiable for Cell {
@@ -424,6 +449,10 @@ impl Instantiable for Cell {
 
     fn set_parameter(&mut self, id: &Identifier, val: Parameter) -> Option<Parameter> {
         self.params.insert(id.clone(), val)
+    }
+
+    fn clear_parameter(&mut self, id: &Identifier) -> Option<Parameter> {
+        self.params.remove(id)
     }
 
     fn parameters(&self) -> Vec<(Identifier, Parameter)> {
@@ -517,6 +546,10 @@ impl<I: Instantiable> Instantiable for ModInst<I> {
         panic!("Cannot set parameter on a module instance");
     }
 
+    fn clear_parameter(&mut self, _id: &Identifier) -> Option<Parameter> {
+        None
+    }
+
     fn parameters(&self) -> Vec<(Identifier, Parameter)> {
         Vec::new()
     }
@@ -531,6 +564,71 @@ impl<I: Instantiable> Instantiable for ModInst<I> {
 
     fn is_seq(&self) -> bool {
         self.seq
+    }
+
+    fn verify(&self) -> Result<(), String> {
+        if self.netlist.get_input_ports().count() != self.inputs.len() {
+            return Err(format!(
+                "Module instance {} has {} input ports, but netlist has {}",
+                self.name,
+                self.inputs.len(),
+                self.netlist.inputs().count()
+            ));
+        }
+
+        if self.netlist.get_output_ports().len() != self.outputs.len() {
+            return Err(format!(
+                "Module instance {} has {} output ports to drive, but netlist has {}",
+                self.name,
+                self.outputs.len(),
+                self.netlist.outputs().len()
+            ));
+        }
+
+        if self.name != *self.netlist.get_name() {
+            return Err(format!(
+                "Module instance {} has name {}, but netlist has name {}",
+                self.name,
+                self.name,
+                self.netlist.get_name()
+            ));
+        }
+
+        if self.seq
+            != self
+                .netlist
+                .objects()
+                .any(|obj| obj.get_instance_type().is_some_and(|i| i.is_seq()))
+        {
+            return Err(
+                "Module/netlist mismatch on whether netlist is sequential or combinational"
+                    .to_string(),
+            );
+        }
+
+        for (a, b) in self.inputs.iter().zip(self.netlist.get_input_ports()) {
+            if a.get_identifier() != b.get_identifier() {
+                return Err(format!(
+                    "Module instance {} input port has name {}, but netlist has name {}",
+                    self.name,
+                    a.get_identifier(),
+                    b.get_identifier()
+                ));
+            }
+        }
+
+        for (a, b) in self.outputs.iter().zip(self.netlist.get_output_ports()) {
+            if a.get_identifier() != b.get_identifier() {
+                return Err(format!(
+                    "Module instance {} output port has name {}, but netlist has name {}",
+                    self.name,
+                    a.get_identifier(),
+                    b.get_identifier()
+                ));
+            }
+        }
+
+        self.netlist.verify().map_err(|e| e.to_string())
     }
 }
 
@@ -601,6 +699,13 @@ impl<I: Instantiable> Instantiable for ModOrCell<I> {
         }
     }
 
+    fn clear_parameter(&mut self, id: &Identifier) -> Option<Parameter> {
+        match self {
+            Self::ModInst(m) => m.clear_parameter(id),
+            Self::Cell(c) => c.clear_parameter(id),
+        }
+    }
+
     fn parameters(&self) -> Vec<(Identifier, Parameter)> {
         match self {
             Self::ModInst(m) => m.parameters(),
@@ -623,6 +728,13 @@ impl<I: Instantiable> Instantiable for ModOrCell<I> {
         match self {
             Self::ModInst(m) => m.is_seq(),
             Self::Cell(c) => c.is_seq(),
+        }
+    }
+
+    fn verify(&self) -> Result<(), String> {
+        match self {
+            Self::ModInst(m) => m.verify(),
+            Self::Cell(c) => c.verify(),
         }
     }
 }

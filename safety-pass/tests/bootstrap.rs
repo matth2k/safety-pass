@@ -96,7 +96,7 @@ fn test_clone_into_inst_into() {
 
     let input = inner.first().unwrap();
     let _clone = outer.clone_into(&input, Some("myclone".into()), &mut HashMap::new());
-
+    assert!(outer.verify().is_ok());
     assert_verilog_eq!(
         outer.to_string(),
         "module outer (

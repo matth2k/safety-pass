@@ -432,16 +432,14 @@ impl Pass for InsertScanChain {
                 continue;
             };
 
-            let rmux = netlist
-                .insert_gate(
-                    mux(),
-                    reg.get_instance_name().unwrap() + format_id!("scan_mux_{n}"),
-                    &[scan_en.clone(), prev, driver],
-                )?
-                .get_output(0);
+            let rmux = netlist.insert_gate(
+                mux(),
+                reg.get_instance_name().unwrap() + format_id!("scan_mux_{n}"),
+                &[scan_en.clone(), prev, driver],
+            )?;
 
-            input.connect(rmux);
-            prev = reg.get_output(0);
+            input.connect(rmux.into());
+            prev = reg.into();
 
             n += 1;
         }
@@ -449,6 +447,51 @@ impl Pass for InsertScanChain {
         prev.expose_with_name("scan_out".into());
 
         Ok(format!("Inserted a scan chain of length {}", n))
+    }
+}
+
+/// Explicity inverts the clock of a cell that has a `IS_CLK_INVERTED` param
+#[derive(Debug)]
+pub struct ExtractInvClock;
+
+impl fmt::Display for ExtractInvClock {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ExtractInvClock")
+    }
+}
+
+impl Pass for ExtractInvClock {
+    type I = Cell;
+    fn run(&self, netlist: &Rc<Netlist<Self::I>>) -> Result<String, Error> {
+        use crate::CellType;
+        use safety_net::Parameter;
+
+        for cell in netlist.matches(|p| {
+            p.get_parameter(&"IS_CLK_INVERTED".into()) == Some(Parameter::from_bool(true))
+        }) {
+            let Some(port) = cell.find_input(&"C".into()) else {
+                continue;
+            };
+
+            let Some(driver) = port.get_driver() else {
+                continue;
+            };
+
+            let inverter = netlist.insert_gate(
+                Cell::new(CellType::INV, None),
+                cell.get_instance_name().unwrap()
+                    + port.get_port().take_identifier()
+                    + "inv".into(),
+                &[driver],
+            )?;
+
+            port.connect(inverter.into());
+            cell.get_instance_type_mut()
+                .unwrap()
+                .clear_parameter(&"IS_CLK_INVERTED".into());
+        }
+
+        Ok("Explicitly inverted all inverted pins".to_string())
     }
 }
 
@@ -518,6 +561,8 @@ register_passes!(BasicPasses<Cell>;
     /// A pass that prints the dot graph of the netlist.
     #[cfg(feature = "graph")]
     DotGraph<Cell>,
+    /// Inverts the clock of a cell that has a `IS_CLK_INVERTED` param
+    ExtractInvClock,
     /// A pass that runs all built-in patterns to a fixed point.
     FoldAllPatterns,
     /// Insert a pair of inverters at every point in the netlist.
