@@ -63,6 +63,8 @@ pub enum CellType {
     FDPE,
     FDCE,
     MAJ3,
+    HA,
+    FA,
 }
 
 impl CellType {
@@ -91,6 +93,8 @@ impl CellType {
             Self::VCC | Self::GND => 0,
             Self::FDRE | Self::FDSE | Self::FDPE | Self::FDCE => 4,
             Self::MAJ3 => 3,
+            Self::HA => 2,
+            Self::FA => 3,
         }
     }
 
@@ -168,6 +172,8 @@ impl CellType {
             Self::FDSE => vec!["D".into(), "C".into(), "CE".into(), "S".into()],
             Self::FDPE => vec!["D".into(), "C".into(), "CE".into(), "PRE".into()],
             Self::FDCE => vec!["D".into(), "C".into(), "CE".into(), "CLR".into()],
+            Self::HA => vec!["A".into(), "B".into()],
+            Self::FA => vec!["A".into(), "B".into(), "CI".into()],
         }
     }
 
@@ -195,6 +201,7 @@ impl CellType {
             Self::GND => vec!["G".into()],
             Self::FDRE | Self::FDSE | Self::FDPE | Self::FDCE => vec!["Q".into()],
             Self::MUX2 | Self::XOR2 => vec!["Z".into()],
+            Self::FA | Self::HA => vec!["CO".into(), "S".into()],
             _ => vec!["ZN".into()],
         }
     }
@@ -262,6 +269,8 @@ impl CellType {
             Self::XNOR2 => Some(1.596),
             Self::XOR2 => Some(1.596),
             Self::MAJ3 => Some(1.064),
+            Self::HA => Some(2.66),
+            Self::FA => Some(4.256),
             _ => None,
         }
     }
@@ -327,6 +336,8 @@ impl FromStr for CellType {
             "FDPE" => Ok(Self::FDPE),
             "FDCE" => Ok(Self::FDCE),
             "MAJ3" => Ok(Self::MAJ3),
+            "HA" => Ok(Self::HA),
+            "FA" => Ok(Self::FA),
             _ => Err(safety_net::Error::ParseError(format!(
                 "Unknown cell type: {s}"
             ))),
@@ -398,6 +409,17 @@ impl Cell {
         let net = &mut self.outputs[ind];
         net.set_identifier(name);
         self
+    }
+
+    /// Returns the area of the cell if the cell type has a known area and size
+    pub fn get_area(&self) -> Option<f32> {
+        if let Some(min) = self.get_type().get_min_area()
+            && let Some(size) = self.size
+        {
+            Some(min * size as f32)
+        } else {
+            None
+        }
     }
 }
 

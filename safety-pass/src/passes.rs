@@ -466,7 +466,9 @@ impl Pass for ExtractInvClock {
         use crate::CellType;
         use safety_net::Parameter;
 
-        for cell in netlist.matches(|p| p.has_parameter(&"IS_CLK_INVERTED".into())) {
+        for cell in netlist.matches(|p| {
+            p.get_parameter(&"IS_CLK_INVERTED".into()) == Some(Parameter::from_bool(true))
+        }) {
             let Some(port) = cell.find_input(&"C".into()) else {
                 continue;
             };
@@ -486,7 +488,7 @@ impl Pass for ExtractInvClock {
             port.connect(inverter.into());
             cell.get_instance_type_mut()
                 .unwrap()
-                .set_parameter(&"IS_CLK_INVERTED".into(), Parameter::from_bool(false));
+                .clear_parameter(&"IS_CLK_INVERTED".into());
         }
 
         Ok("Explicitly inverted all inverted pins".to_string())
