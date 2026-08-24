@@ -426,6 +426,10 @@ impl Instantiable for Cell {
         self.params.insert(id.clone(), val)
     }
 
+    fn clear_parameter(&mut self, id: &Identifier) -> Option<Parameter> {
+        self.params.remove(id)
+    }
+
     fn parameters(&self) -> Vec<(Identifier, Parameter)> {
         self.params.clone().into_iter().collect()
     }
@@ -517,6 +521,10 @@ impl<I: Instantiable> Instantiable for ModInst<I> {
         panic!("Cannot set parameter on a module instance");
     }
 
+    fn clear_parameter(&mut self, _id: &Identifier) -> Option<Parameter> {
+        None
+    }
+
     fn parameters(&self) -> Vec<(Identifier, Parameter)> {
         Vec::new()
     }
@@ -531,6 +539,71 @@ impl<I: Instantiable> Instantiable for ModInst<I> {
 
     fn is_seq(&self) -> bool {
         self.seq
+    }
+
+    fn verify(&self) -> Result<(), String> {
+        if self.netlist.get_input_ports().count() != self.inputs.len() {
+            return Err(format!(
+                "Module instance {} has {} input ports, but netlist has {}",
+                self.name,
+                self.inputs.len(),
+                self.netlist.inputs().count()
+            ));
+        }
+
+        if self.netlist.get_output_ports().len() != self.outputs.len() {
+            return Err(format!(
+                "Module instance {} has {} output ports to drive, but netlist has {}",
+                self.name,
+                self.outputs.len(),
+                self.netlist.outputs().len()
+            ));
+        }
+
+        if self.name != *self.netlist.get_name() {
+            return Err(format!(
+                "Module instance {} has name {}, but netlist has name {}",
+                self.name,
+                self.name,
+                self.netlist.get_name()
+            ));
+        }
+
+        if self.seq
+            != self
+                .netlist
+                .objects()
+                .any(|obj| obj.get_instance_type().is_some_and(|i| i.is_seq()))
+        {
+            return Err(
+                "Module/netlist mismatch on whether netlist is sequential or combinational"
+                    .to_string(),
+            );
+        }
+
+        for (a, b) in self.inputs.iter().zip(self.netlist.get_input_ports()) {
+            if a.get_identifier() != b.get_identifier() {
+                return Err(format!(
+                    "Module instance {} input port has name {}, but netlist has name {}",
+                    self.name,
+                    a.get_identifier(),
+                    b.get_identifier()
+                ));
+            }
+        }
+
+        for (a, b) in self.outputs.iter().zip(self.netlist.get_output_ports()) {
+            if a.get_identifier() != b.get_identifier() {
+                return Err(format!(
+                    "Module instance {} output port has name {}, but netlist has name {}",
+                    self.name,
+                    a.get_identifier(),
+                    b.get_identifier()
+                ));
+            }
+        }
+
+        self.netlist.verify().map_err(|e| e.to_string())
     }
 }
 
@@ -601,6 +674,13 @@ impl<I: Instantiable> Instantiable for ModOrCell<I> {
         }
     }
 
+    fn clear_parameter(&mut self, id: &Identifier) -> Option<Parameter> {
+        match self {
+            Self::ModInst(m) => m.clear_parameter(id),
+            Self::Cell(c) => c.clear_parameter(id),
+        }
+    }
+
     fn parameters(&self) -> Vec<(Identifier, Parameter)> {
         match self {
             Self::ModInst(m) => m.parameters(),
@@ -623,6 +703,13 @@ impl<I: Instantiable> Instantiable for ModOrCell<I> {
         match self {
             Self::ModInst(m) => m.is_seq(),
             Self::Cell(c) => c.is_seq(),
+        }
+    }
+
+    fn verify(&self) -> Result<(), String> {
+        match self {
+            Self::ModInst(m) => m.verify(),
+            Self::Cell(c) => c.verify(),
         }
     }
 }

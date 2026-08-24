@@ -432,16 +432,14 @@ impl Pass for InsertScanChain {
                 continue;
             };
 
-            let rmux = netlist
-                .insert_gate(
-                    mux(),
-                    reg.get_instance_name().unwrap() + format_id!("scan_mux_{n}"),
-                    &[scan_en.clone(), prev, driver],
-                )?
-                .get_output(0);
+            let rmux = netlist.insert_gate(
+                mux(),
+                reg.get_instance_name().unwrap() + format_id!("scan_mux_{n}"),
+                &[scan_en.clone(), prev, driver],
+            )?;
 
-            input.connect(rmux);
-            prev = reg.get_output(0);
+            input.connect(rmux.into());
+            prev = reg.into();
 
             n += 1;
         }
@@ -469,7 +467,7 @@ impl Pass for ExtractInvClock {
         use safety_net::Parameter;
 
         for cell in netlist.matches(|p| p.has_parameter(&"IS_CLK_INVERTED".into())) {
-            let Some(port) = cell.find_input(&"CLK".into()) else {
+            let Some(port) = cell.find_input(&"C".into()) else {
                 continue;
             };
 

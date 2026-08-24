@@ -29,32 +29,21 @@ impl Pattern for Idempotent {
         _create: &Create<Self::I>,
         replace: &mut Replace<Self::I>,
     ) -> Result<bool, Error> {
-        if !matches!(
+        if matches!(
             cell_type.get_type(),
             CellType::AND | CellType::AND2 | CellType::OR | CellType::OR2
-        ) {
-            return Ok(false);
+        ) && let Some(a) = cell.get_input(0).get_driver()
+            && let Some(b) = cell.get_input(1).get_driver()
+            && a == b
+        {
+            let c = cell.get_output(0);
+            debug!("Pattern applied to cell {}!", c.as_net());
+            replace(c, a)?;
+
+            return Ok(true);
         }
 
-        let a = cell.get_input(0).get_driver();
-        let b = cell.get_input(1).get_driver();
-
-        if a.is_none() || b.is_none() {
-            return Ok(false);
-        }
-
-        let a = a.unwrap();
-        let b = b.unwrap();
-
-        if a != b {
-            return Ok(false);
-        }
-
-        let c = cell.get_output(0);
-        debug!("Pattern applied to cell {}!", c.as_net());
-        replace(c, a)?;
-
-        Ok(true)
+        Ok(false)
     }
 }
 
