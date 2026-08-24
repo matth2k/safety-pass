@@ -248,6 +248,8 @@ fn test_inline() {
 fn test_inline_recursive() {
     let nl = nested_and();
 
+    assert!(nl.verify().is_ok());
+
     let inlined = safety_pass::inline_recursive(&nl);
     assert!(inlined.is_ok());
     let inlined = inlined.unwrap();
