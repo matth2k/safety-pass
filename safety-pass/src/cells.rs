@@ -414,6 +414,18 @@ impl Cell {
         self
     }
 
+    /// If the cell is sized, resize it and return the old size
+    pub fn resize(&mut self, size: usize) -> Option<usize> {
+        match self.size {
+            Some(old) => {
+                self.size = Some(size);
+                self.name = format_id!("{}_X{}", self.ptype, size);
+                Some(old)
+            }
+            None => None,
+        }
+    }
+
     /// Returns the area of the cell if the cell type has a known area and size
     pub fn get_area(&self) -> Option<f32> {
         if let Some(min) = self.get_type().get_min_area()
@@ -477,6 +489,17 @@ impl Instantiable for Cell {
 
     fn is_seq(&self) -> bool {
         self.ptype.is_reg()
+    }
+
+    fn verify(&self) -> Result<(), String> {
+        if self.ptype.is_lut() && !self.has_parameter(&"INIT".into()) {
+            return Err(format!(
+                "LUT cell {} missing INIT parameter",
+                self.get_name()
+            ));
+        }
+
+        Ok(())
     }
 }
 
@@ -743,17 +766,38 @@ impl<I: Instantiable> Instantiable for ModOrCell<I> {
 pub trait Primitive {
     /// Get the primitive cell type
     fn get_ptype(&self) -> Option<CellType>;
+
+    /// Get the size of the primitive cell if it is sized
+    fn get_size(&self) -> Option<usize>;
+}
+
+impl Primitive for Cell {
+    fn get_ptype(&self) -> Option<CellType> {
+        Some(self.get_type())
+    }
+
+    fn get_size(&self) -> Option<usize> {
+        self.size
+    }
 }
 
 impl Primitive for NetRef<Cell> {
     fn get_ptype(&self) -> Option<CellType> {
         self.get_instance_type().map(|t| t.get_type())
     }
+
+    fn get_size(&self) -> Option<usize> {
+        self.get_instance_type().and_then(|t| t.get_size())
+    }
 }
 
 impl Primitive for DrivenNet<Cell> {
     fn get_ptype(&self) -> Option<CellType> {
         self.get_instance_type().map(|t| t.get_type())
+    }
+
+    fn get_size(&self) -> Option<usize> {
+        self.get_instance_type().and_then(|t| t.get_size())
     }
 }
 
@@ -764,6 +808,13 @@ impl Primitive for NetRef<ModOrCell<Cell>> {
             ModOrCell::Cell(c) => Some(c.get_type()),
         })
     }
+
+    fn get_size(&self) -> Option<usize> {
+        self.get_instance_type().and_then(|t| match &*t {
+            ModOrCell::ModInst(_) => None,
+            ModOrCell::Cell(c) => c.get_size(),
+        })
+    }
 }
 
 impl Primitive for DrivenNet<ModOrCell<Cell>> {
@@ -771,6 +822,13 @@ impl Primitive for DrivenNet<ModOrCell<Cell>> {
         self.get_instance_type().and_then(|t| match &*t {
             ModOrCell::ModInst(_) => None,
             ModOrCell::Cell(c) => Some(c.get_type()),
+        })
+    }
+
+    fn get_size(&self) -> Option<usize> {
+        self.get_instance_type().and_then(|t| match &*t {
+            ModOrCell::ModInst(_) => None,
+            ModOrCell::Cell(c) => c.get_size(),
         })
     }
 }
