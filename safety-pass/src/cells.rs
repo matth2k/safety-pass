@@ -426,11 +426,6 @@ impl Cell {
         }
     }
 
-    /// Get the size of the cell if it is sized
-    pub fn get_size(&self) -> Option<usize> {
-        self.size
-    }
-
     /// Returns the area of the cell if the cell type has a known area and size
     pub fn get_area(&self) -> Option<f32> {
         if let Some(min) = self.get_type().get_min_area()
@@ -771,17 +766,38 @@ impl<I: Instantiable> Instantiable for ModOrCell<I> {
 pub trait Primitive {
     /// Get the primitive cell type
     fn get_ptype(&self) -> Option<CellType>;
+
+    /// Get the size of the primitive cell if it is sized
+    fn get_size(&self) -> Option<usize>;
+}
+
+impl Primitive for Cell {
+    fn get_ptype(&self) -> Option<CellType> {
+        Some(self.get_type())
+    }
+
+    fn get_size(&self) -> Option<usize> {
+        self.size
+    }
 }
 
 impl Primitive for NetRef<Cell> {
     fn get_ptype(&self) -> Option<CellType> {
         self.get_instance_type().map(|t| t.get_type())
     }
+
+    fn get_size(&self) -> Option<usize> {
+        self.get_instance_type().and_then(|t| t.get_size())
+    }
 }
 
 impl Primitive for DrivenNet<Cell> {
     fn get_ptype(&self) -> Option<CellType> {
         self.get_instance_type().map(|t| t.get_type())
+    }
+
+    fn get_size(&self) -> Option<usize> {
+        self.get_instance_type().and_then(|t| t.get_size())
     }
 }
 
@@ -792,6 +808,13 @@ impl Primitive for NetRef<ModOrCell<Cell>> {
             ModOrCell::Cell(c) => Some(c.get_type()),
         })
     }
+
+    fn get_size(&self) -> Option<usize> {
+        self.get_instance_type().and_then(|t| match &*t {
+            ModOrCell::ModInst(_) => None,
+            ModOrCell::Cell(c) => c.get_size(),
+        })
+    }
 }
 
 impl Primitive for DrivenNet<ModOrCell<Cell>> {
@@ -799,6 +822,13 @@ impl Primitive for DrivenNet<ModOrCell<Cell>> {
         self.get_instance_type().and_then(|t| match &*t {
             ModOrCell::ModInst(_) => None,
             ModOrCell::Cell(c) => Some(c.get_type()),
+        })
+    }
+
+    fn get_size(&self) -> Option<usize> {
+        self.get_instance_type().and_then(|t| match &*t {
+            ModOrCell::ModInst(_) => None,
+            ModOrCell::Cell(c) => c.get_size(),
         })
     }
 }
