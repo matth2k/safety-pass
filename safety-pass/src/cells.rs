@@ -414,6 +414,23 @@ impl Cell {
         self
     }
 
+    /// If the cell is sized, resize it and return the old size
+    pub fn resize(mut self, size: usize) -> Option<usize> {
+        match self.size {
+            Some(old) => {
+                self.size = Some(size);
+                self.name = format_id!("{}_X{}", self.ptype, size);
+                Some(old)
+            }
+            None => None,
+        }
+    }
+
+    /// Get the size of the cell if it is sized
+    pub fn get_size(&self) -> Option<usize> {
+        self.size
+    }
+
     /// Returns the area of the cell if the cell type has a known area and size
     pub fn get_area(&self) -> Option<f32> {
         if let Some(min) = self.get_type().get_min_area()
@@ -477,6 +494,17 @@ impl Instantiable for Cell {
 
     fn is_seq(&self) -> bool {
         self.ptype.is_reg()
+    }
+
+    fn verify(&self) -> Result<(), String> {
+        if self.ptype.is_lut() && !self.has_parameter(&"INIT".into()) {
+            return Err(format!(
+                "LUT cell {} missing INIT parameter",
+                self.get_name()
+            ));
+        }
+
+        Ok(())
     }
 }
 
