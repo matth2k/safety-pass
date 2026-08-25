@@ -415,7 +415,7 @@ impl Cell {
     }
 
     /// If the cell is sized, resize it and return the old size
-    pub fn resize(mut self, size: usize) -> Option<usize> {
+    pub fn resize(&mut self, size: usize) -> Option<usize> {
         match self.size {
             Some(old) => {
                 self.size = Some(size);
