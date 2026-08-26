@@ -351,9 +351,7 @@ impl<I: Instantiable> Pass for DedupConsts<I> {
 
                 for nr in nrs {
                     if nr.attributes().count() == 0 {
-                        for output in nr.outputs() {
-                            mapper.replace(output, const_net.clone());
-                        }
+                        mapper.replace(nr.into(), const_net.clone());
                     }
                 }
             }
