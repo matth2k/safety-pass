@@ -302,6 +302,67 @@ impl<I: Instantiable> Pass for StripAttributes<I> {
     }
 }
 
+/// Deduplicate constant nets in the netlist.
+pub struct DedupConsts<I: Instantiable>(pub std::marker::PhantomData<I>);
+
+impl<I: Instantiable> fmt::Display for DedupConsts<I> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "DedupConsts")
+    }
+}
+
+impl<I: Instantiable> fmt::Debug for DedupConsts<I> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "DedupConsts")
+    }
+}
+
+impl<I: Instantiable> Pass for DedupConsts<I> {
+    type I = I;
+
+    fn run(&self, netlist: &Rc<Netlist<Self::I>>) -> Result<String, Error> {
+        use safety_net::Logic;
+        const CONSTS: [Logic; 4] = [Logic::X, Logic::Z, Logic::False, Logic::True];
+
+        let mut mapper = NetMapper::new(netlist)?;
+
+        fn is_simple_const<I: Instantiable>(cell: &I, c: Logic) -> bool {
+            cell.get_constant().is_some_and(|v| v == c)
+                && cell.get_num_input_ports() == 0
+                && cell.get_num_output_ports() == 1
+                && cell.parameters().is_empty()
+        }
+
+        for c in CONSTS {
+            if let Some(cell) = I::from_constant(c)
+                && is_simple_const(&cell, c)
+            {
+                let nrs = netlist
+                    .matches(|i| is_simple_const(i, c))
+                    .collect::<Vec<_>>();
+                if nrs.is_empty() {
+                    continue;
+                }
+
+                let const_name = cell.get_name().clone() + "inst".into();
+                let const_net = netlist
+                    .insert_gate_disconnected(cell, const_name)
+                    .get_output(0);
+
+                for nr in nrs {
+                    if nr.attributes().count() == 0 {
+                        mapper.replace(nr.into(), const_net.clone());
+                    }
+                }
+            }
+        }
+
+        mapper.apply()?;
+        netlist.clean()?;
+        Ok("Deduplicated all constant nets".to_string())
+    }
+}
+
 /// A pass that runs all patterns to a covergence.
 /// Checks patterns in insertion order
 /// AndIdentity, OrIdentity, AndAbsorb, OrAbsorb, NandIdentity, NorIdentity, NandAbsorb, NorAbsorb,
@@ -558,6 +619,8 @@ register_passes!(BasicPasses<Cell>;
     CellStats<Cell>,
     /// A pass that cleans the netlist.
     Clean<Cell>,
+    /// Deduplicate constant nets in the netlist.
+    DedupConsts<Cell>,
     /// A pass that prints the dot graph of the netlist.
     #[cfg(feature = "graph")]
     DotGraph<Cell>,
