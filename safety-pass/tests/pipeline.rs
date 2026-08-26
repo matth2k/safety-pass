@@ -63,3 +63,25 @@ fn test_folder_debug() {
         }"
     );
 }
+
+#[test]
+fn test_proc_multiple() {
+    let nl = ex_netlist();
+    let mut vec = Vec::new();
+    for _ in 0..4 {
+        vec.push(nl.deep_clone());
+    }
+    vec.push(nl);
+    let mut pipeline = Pipeline::default();
+    {
+        let mut folder = Folder::<Cell>::new(101);
+        folder.insert(Idempotent);
+
+        pipeline.insert(folder);
+    }
+
+    let res = pipeline.execute_many(&vec, false);
+    assert!(res.is_ok());
+    let res = res.unwrap();
+    assert_eq!(res.lines().count(), 5);
+}
