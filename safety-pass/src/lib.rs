@@ -88,8 +88,9 @@ impl<I: Instantiable> Pipeline<I> {
     ) -> Result<String, Error<'_, I>> {
         let mut res = String::new();
         let n = self.passes.len();
+        let name = netlist.get_name().to_string();
         for (i, pass) in self.passes.iter().enumerate() {
-            info!("[Pass {i}] {pass}");
+            info!("[{pass}][{name}] Running pass {}/{}...", i + 1, n);
             match pass.run(netlist) {
                 Ok(output) => {
                     res = output;
@@ -98,7 +99,7 @@ impl<I: Instantiable> Pipeline<I> {
                             return Err(Error::PassError(pass.as_ref(), e));
                         }
                         for line in res.lines() {
-                            info!("[{pass}] {line}");
+                            info!("[{pass}][{name}] {line}");
                         }
                     }
                 }
@@ -106,6 +107,27 @@ impl<I: Instantiable> Pipeline<I> {
             }
         }
         netlist.verify()?;
+        Ok(res)
+    }
+
+    /// Execute the pipeline on each netlist. If `verify_each` is true, verify the netlist after each pass.
+    /// All the pipeline outputs are appended into one string.
+    pub fn execute_many(
+        &self,
+        netlists: &[Rc<Netlist<I>>],
+        verify_each: bool,
+    ) -> Result<String, Error<'_, I>> {
+        let mut res = String::new();
+        let last = netlists.len() - 1;
+        for (i, netlist) in netlists.iter().enumerate() {
+            let s = self.execute(netlist, verify_each)?;
+            if !s.is_empty() {
+                res.push_str(&s);
+                if i != last {
+                    res.push('\n');
+                }
+            }
+        }
         Ok(res)
     }
 }
