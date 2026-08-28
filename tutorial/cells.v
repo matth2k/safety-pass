@@ -12,7 +12,6 @@ module FA (
 
 endmodule
 
-
 module XOR2 (
     input  wire A,
     input  wire B,
@@ -23,13 +22,22 @@ module XOR2 (
 
 endmodule
 
-module MUX2 (
-    input  wire S,
-    input  wire B,
-    input  wire A,
-    output wire Z
+module OR2 (
+    input  wire A1,
+    input  wire A2,
+    output wire ZN
 );
 
-  assign Z = S ? B : A;
+  assign ZN = A1 | A2;
+
+endmodule
+
+module AND2 (
+    input  wire A1,
+    input  wire A2,
+    output wire ZN
+);
+
+  assign ZN = A1 & A2;
 
 endmodule
