@@ -1,0 +1,93 @@
+diff --git a/safety-pass/src/passes.rs b/safety-pass/src/passes.rs
+index 9900e73..4eab6e2 100644
+--- a/safety-pass/src/passes.rs
++++ b/safety-pass/src/passes.rs
+@@ -381,8 +381,8 @@ impl Pass for FoldAllPatterns {
+ 
+     fn run(&self, netlist: &Rc<Netlist<Self::I>>) -> Result<String, Error> {
+         use crate::patterns::{
+-            AndAbsorb, AndIdentity, DoubleNegation, Idempotent, MonotoneFold, NandAbsorb,
+-            NandIdentity, NorAbsorb, NorIdentity, OrAbsorb, OrIdentity,
++            AndAbsorb, AndIdentity, DecomposeFA, DoubleNegation, Idempotent, MonotoneFold,
++            NandAbsorb, NandIdentity, NorAbsorb, NorIdentity, OrAbsorb, OrIdentity,
+         };
+         let mut folder = crate::Folder::new(100000);
+         folder.insert(AndIdentity);
+@@ -396,6 +396,7 @@ impl Pass for FoldAllPatterns {
+         folder.insert(DoubleNegation);
+         folder.insert(Idempotent);
+         folder.insert(MonotoneFold);
++        folder.insert(DecomposeFA);
+         folder.run(netlist)
+     }
+ }
+diff --git a/safety-pass/src/patterns.rs b/safety-pass/src/patterns.rs
+index 31099b6..bd7b924 100644
+--- a/safety-pass/src/patterns.rs
++++ b/safety-pass/src/patterns.rs
+@@ -504,3 +504,65 @@ impl Pattern for NorIdentity {
+         Ok(true)
+     }
+ }
++
++/// Decompose a full adder into XOR, AND, and OR gates
++#[derive(Debug)]
++pub struct DecomposeFA;
++impl fmt::Display for DecomposeFA {
++    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
++        write!(f, "DecomposeFA")
++    }
++}
++
++impl Pattern for DecomposeFA {
++    type I = Cell;
++    fn apply(
++        &self,
++        cell: &NetRef<Self::I>,
++        cell_type: &Self::I,
++        create: &Create<Self::I>,
++        replace: &mut Replace<Self::I>,
++    ) -> Result<bool, Error> {
++        // Helper functions to create new gates
++        fn and() -> Cell {
++            Cell::new(CellType::AND2, None)
++        }
++
++        fn or() -> Cell {
++            Cell::new(CellType::OR2, None)
++        }
++
++        fn xor() -> Cell {
++            Cell::new(CellType::XOR2, None)
++        }
++
++        // 1. Searches the input port exists and 2. checks the input is driven
++        fn try_input(cell: &NetRef<Cell>, name: &str) -> Option<DrivenNet<Cell>> {
++            cell.find_input(&name.into()).and_then(|i| i.get_driver())
++        }
++
++        // if cell is a fully driven FA
++        if cell_type.get_type() == CellType::FA
++            && let Some(a) = try_input(cell, "A")
++            && let Some(b) = try_input(cell, "B")
++            && let Some(ci) = try_input(cell, "CI")
++        {
++            let xor_a_b = create(
++                xor(),
++                a.get_identifier() + "xor".into() + b.get_identifier(),
++            );
++            xor_a_b.get_input(0).connect(a);
++            xor_a_b.get_input(1).connect(b);
++
++            todo!("Implement the rest of the full adder");
++
++            let sum = cell.find_output(&"S".into()).unwrap();
++            let cout = cell.find_output(&"CO".into()).unwrap();
++
++            todo!("Run replace on sum and cout");
++            return Ok(true);
++        }
++
++        Ok(false)
++    }
++}

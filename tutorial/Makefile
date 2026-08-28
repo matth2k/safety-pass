@@ -1,5 +1,5 @@
 
-.PHONY: clean test
+.PHONY: clean test patch
 
 clean:
 	rm -rf obj_dir rca.png
@@ -12,3 +12,6 @@ obj_dir/Vrca: rca.v cells.v rca_main.cpp
 
 rca.png: rca.v
 	nl_opt rca.v -p dot-graph | dot -Tpng > rca.png
+
+patch: decompose_fa.patch
+	git apply decompose_fa.patch
