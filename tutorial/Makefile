@@ -13,5 +13,5 @@ obj_dir/Vrca: rca.v cells.v rca_main.cpp
 rca.png: rca.v
 	nl_opt rca.v -p dot-graph | dot -Tpng > rca.png
 
-patch: decompose_fa.patch
-	cd .. && git apply tutorial/decompose_fa.patch
+patch: pass_template.patch
+	cd .. && git apply tutorial/pass_template.patch
