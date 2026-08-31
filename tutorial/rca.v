@@ -3,12 +3,11 @@
 module rca (
     input wire [3:0] a,
     input wire [3:0] b,
-    input wire subtract,
     output wire [4:0] sum
 );
 
   // Desired functionality:
-  // assign sum = subtract ? (a - b) : (a + b);
+  // assign sum = a + b;
 
   wire [2:0] carry;
 
