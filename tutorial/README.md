@@ -80,7 +80,7 @@ This command:
 3. Runs the existing `dot-graph` pass
 4. Uses Graphviz to create `rca.png`
 
-The image has four full-adder cells `fa_0` through `fa_3` and the carry wires correctly connect `fa_0` to `fa_1` and `fa_1` to `fa_2`. 
+The image has four full-adder cells `fa_0` through `fa_3` and the carry wires correctly connect `fa_0` to `fa_1` and `fa_1` to `fa_2`.
 `fa_3` has no wire entering its `CI` port -- the missing connection is `carry[2]`.
 
 ## 3. Repair the missing carry connection
@@ -228,7 +228,7 @@ impl Pass for MyPass {
 }
 ```
 
-For every full adder the pass retrieves `A` and `B` input ports and remembers their original driver nets. 
+For every full adder the pass retrieves `A` and `B` input ports and remembers their original driver nets.
 It reconnects each port to the other port's driver. Cells with missing ports / drivers are skipped.
 
 Check and run the implementation:
@@ -294,9 +294,9 @@ Run the transformed simulation:
 
 All 256 cases should pass.
 
-## Summary of the workflow 
+## Summary of the workflow
 
-Congratulations! Here's what you accomplished: 
+Congratulations! Here's what you accomplished:
 
 1. Compile Verilog into a safety-net netlist
 2. Find cells of a specific type

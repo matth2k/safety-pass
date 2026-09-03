@@ -571,21 +571,21 @@ impl Pass for MyPass {
     fn run(&self, netlist: &Rc<Netlist<Self::I>>) -> Result<String, Error> {
         use crate::CellType;
 
-        let mut swapped = 0; 
+        let mut swapped = 0;
 
         for cell in netlist.matches(|p| p.get_type() == CellType::FA) {
             //todo!("Do something with this full adder cell! Swap A and B?")
             let Some(a) = cell.find_input(&"A".into()) else {
-                continue; 
+                continue;
             };
             let Some(b) = cell.find_input(&"B".into()) else {
-                continue; 
+                continue;
             };
             let Some(a_driver) = a.get_driver() else {
                 continue;
             };
             let Some(b_driver) = b.get_driver() else {
-                continue; 
+                continue;
             };
 
             a.connect(b_driver);
