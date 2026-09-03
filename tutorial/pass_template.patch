@@ -1,0 +1,43 @@
+diff --git a/safety-pass/src/passes.rs b/safety-pass/src/passes.rs
+index 9900e73..db9bd4a 100644
+--- a/safety-pass/src/passes.rs
++++ b/safety-pass/src/passes.rs
+@@ -556,6 +556,29 @@ impl Pass for ExtractInvClock {
+     }
+ }
+ 
++/// TODO: Do whatever you want in this pass
++#[derive(Debug)]
++pub struct MyPass;
++
++impl fmt::Display for MyPass {
++    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
++        write!(f, "MyPass")
++    }
++}
++
++impl Pass for MyPass {
++    type I = Cell;
++    fn run(&self, netlist: &Rc<Netlist<Self::I>>) -> Result<String, Error> {
++        use crate::CellType;
++
++        for cell in netlist.matches(|p| p.get_type() == CellType::FA) {
++            todo!("Do something with this full adder cell! Swap A and B?")
++        }
++
++        Ok("TODO: Give some information on what the pass did".to_string())
++    }
++}
++
+ /// Returns `Some(I)` if the cell should be replaced with something else
+ type Remap<I> = dyn Fn(&I) -> Option<I> + 'static;
+ 
+@@ -634,6 +657,8 @@ register_passes!(BasicPasses<Cell>;
+     InsertScanChain,
+     /// List all nets in the netlist
+     ListNets<Cell>,
++    /// TODO: say what this pass does
++    MyPass,
+     /// A dummy pass that emits the Verilog of the netlist.
+     PrintVerilog<Cell>,
+     /// Renames nets/instances sequentially __0__, __1__, ...
