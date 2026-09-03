@@ -556,6 +556,48 @@ impl Pass for ExtractInvClock {
     }
 }
 
+/// TODO: Do whatever you want in this pass
+#[derive(Debug)]
+pub struct MyPass;
+
+impl fmt::Display for MyPass {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "MyPass")
+    }
+}
+
+impl Pass for MyPass {
+    type I = Cell;
+    fn run(&self, netlist: &Rc<Netlist<Self::I>>) -> Result<String, Error> {
+        use crate::CellType;
+
+        let mut swapped = 0; 
+
+        for cell in netlist.matches(|p| p.get_type() == CellType::FA) {
+            //todo!("Do something with this full adder cell! Swap A and B?")
+            let Some(a) = cell.find_input(&"A".into()) else {
+                continue; 
+            };
+            let Some(b) = cell.find_input(&"B".into()) else {
+                continue; 
+            };
+            let Some(a_driver) = a.get_driver() else {
+                continue;
+            };
+            let Some(b_driver) = b.get_driver() else {
+                continue; 
+            };
+
+            a.connect(b_driver);
+            b.connect(a_driver);
+
+            swapped += 1;
+        }
+
+        Ok(format!("Swapped A and B inputs on {swapped} full adders"))
+    }
+}
+
 /// Returns `Some(I)` if the cell should be replaced with something else
 type Remap<I> = dyn Fn(&I) -> Option<I> + 'static;
 
@@ -634,6 +676,8 @@ register_passes!(BasicPasses<Cell>;
     InsertScanChain,
     /// List all nets in the netlist
     ListNets<Cell>,
+    /// TODO: say what this pass does
+    MyPass,
     /// A dummy pass that emits the Verilog of the netlist.
     PrintVerilog<Cell>,
     /// Renames nets/instances sequentially __0__, __1__, ...

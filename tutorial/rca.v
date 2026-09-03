@@ -38,7 +38,7 @@ module rca (
   FA fa_3 (
       .A (a[3]),
       .B (b[3]),
-      //    .CI(carry[2]),
+      .CI(carry[2]),
       .S (sum[3]),
       .CO(sum[4])
   );
