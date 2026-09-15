@@ -9,6 +9,55 @@ use safety_net::{
 };
 use std::{collections::HashMap, fmt, rc::Rc, str::FromStr};
 
+#[macro_export]
+/// Recursively creates a verilog expression from an input string
+macro_rules! logic_rule {
+    // base case
+    ($cell_type:expr; $input_number:literal) => {{
+        let input_ports = $cell_type.get_input_ports();
+        input_ports[$input_number].to_string()
+    }};
+
+    // negation on single literial
+    ($cell_type:expr; !$input_number:literal) => {{
+        let inner_string = logic_rule!($cell_type; $input_number);
+        format!("~{}", inner_string)
+    }};
+
+    // strip outer parens and recursively evaluate
+    ($cell_type:expr; ($($inner:tt)+)) => {{
+        logic_rule!($cell_type; $($inner)+)
+    }};
+
+    // chain of 3+ operands, i.e A && B && C
+    ($cell_type:expr; $first:tt && $($rest:tt)&&+) => {{
+        let first_string =  logic_rule!($cell_type; $first);
+        let rest_string = logic_rule!($cell_type; $($rest)&&+);
+        first_string + " & " + &rest_string
+    }};
+
+    // chain of 3+ operands; A || B || C ...
+    ($cell_type:expr; $first:tt || $($rest:tt)||+) => {{
+        let first_string = logic_rule!($cell_type; $first);
+        let rest_string = logic_rule!($cell_type; $($rest)||+);
+        first_string + " | " + &rest_string
+    }};
+
+    // A && B
+    ($cell_type:expr; $left:tt && $right:tt) => {{
+        let left_string = logic_rule!($cell_type; $left);
+        let right_string = logic_rule!($cell_type; $right);
+        left_string + " & " + &right_string
+    }};
+
+    // A || B
+    ($cell_type:expr; $left:tt || $right:tt) => {{
+        let left_string = logic_rule!($cell_type; $left);
+        let right_string = logic_rule!($cell_type; $right);
+        left_string + " | " + &right_string
+    }};
+}
+
 /// A logic cell type
 #[allow(missing_docs)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -69,6 +118,88 @@ pub enum CellType {
 }
 
 impl CellType {
+    /// Get verilog body
+    pub fn get_verilog_body(&self) -> String {
+        match self {
+            CellType::BUF => logic_rule!(self; 0),
+            CellType::NOT | CellType::INV => logic_rule!(self; !0),
+
+            CellType::AND | CellType::AND2 => logic_rule!(self; 0 && 1),
+            CellType::OR | CellType::OR2 => logic_rule!(self; 0 || 1),
+            CellType::XOR | CellType::XOR2 => {
+                format!("({}) ^ ({})", logic_rule!(self; 0), logic_rule!(self; 1))
+            }
+            CellType::NAND | CellType::NAND2 => {
+                format!("~({})", logic_rule!(self; 0 && 1))
+            }
+            CellType::NOR | CellType::NOR2 => {
+                format!("~({})", logic_rule!(self; 0 || 1))
+            }
+            CellType::XNOR | CellType::XNOR2 => {
+                format!("~(({}) ^ ({}))", logic_rule!(self; 0), logic_rule!(self; 1))
+            }
+
+            // 3 input gates
+            CellType::AND3 => logic_rule!(self; 0 && 1 && 2),
+            CellType::OR3 => logic_rule!(self; 0 || 1 || 2),
+            CellType::NAND3 => format!("~({})", logic_rule!(self; 0 && 1 && 2)),
+            CellType::NOR3 => format!("~({})", logic_rule!(self; 0 || 1 || 2)),
+
+            // 4 input gates
+            CellType::AND4 => logic_rule!(self; 0 && 1 && 2 && 3),
+            CellType::OR4 => logic_rule!(self; 0 || 1 || 2 || 3),
+            CellType::NAND4 => format!("~({})", logic_rule!(self; 0 && 1 && 2 && 3)),
+            CellType::NOR4 => format!("~({})", logic_rule!(self; 0 || 1 || 2 || 3)),
+
+            // LUTs - not representable in this format
+            CellType::LUT1
+            | CellType::LUT2
+            | CellType::LUT3
+            | CellType::LUT4
+            | CellType::LUT5
+            | CellType::LUT6 => {
+                panic!("not representable in this format")
+            }
+
+            // constants don't have a logic expression
+            CellType::VCC => panic!("VCC is a constant"),
+            CellType::GND => panic!("GND is a constant"),
+
+            // We don't have any representation for sequential logic
+            CellType::FDRE | CellType::FDSE | CellType::FDPE | CellType::FDCE => {
+                panic!("flip-flops are sequential, cannot be represented combinationally")
+            }
+
+            // multioutput cells
+            CellType::MAJ3 | CellType::HA | CellType::FA => {
+                panic!("multi-output cells aren't supported")
+            }
+
+            // muxes, not sure how to represent select
+            CellType::MUX
+            | CellType::MUX2
+            | CellType::MUXF7
+            | CellType::MUXF8
+            | CellType::MUXF9 => {
+                panic!("mux cells are not implemented")
+            }
+
+            // AOI/OAI cells, make sure grouping is right before completing
+            CellType::AOI21
+            | CellType::OAI21
+            | CellType::AOI211
+            | CellType::AOI22
+            | CellType::OAI211
+            | CellType::OAI22
+            | CellType::OAI221
+            | CellType::AOI221
+            | CellType::OAI222
+            | CellType::AOI222 => {
+                panic!("AOI and OAI are not yet implemented 66")
+            }
+        }
+    }
+
     /// Return the number of inputs
     pub fn get_num_inputs(&self) -> usize {
         match self {
@@ -275,6 +406,53 @@ impl CellType {
             Self::FA => Some(4.256),
             _ => None,
         }
+    }
+}
+
+/// Allows for Verilog generation for a cell
+pub trait VerilogEqn: Instantiable {
+    /// Returns the Verilog body expression for a given Cell's logic
+    fn get_verilog_body(&self) -> String;
+
+    /// Builds the full module definition for a given Cell
+    fn get_verilog_module(&self) -> String {
+        let mut output = String::new();
+
+        let input_ports = self.get_input_ports();
+        let output_ports = self.get_output_ports();
+        let out_port_name = output_ports[0].to_string();
+
+        output.push_str("module ");
+        output.push_str(&self.get_name().to_string());
+        output.push_str("(\n");
+
+        let mut i = 0;
+        while i < input_ports.len() {
+            output.push_str("    input ");
+            output.push_str(&input_ports[i].to_string());
+            output.push_str(",\n");
+            i += 1;
+        }
+
+        output.push_str("    output ");
+        output.push_str(&out_port_name);
+        output.push_str("\n);\n");
+
+        output.push_str("    assign ");
+        output.push_str(&out_port_name);
+        output.push_str(" = ");
+        output.push_str(&self.get_verilog_body());
+        output.push_str(";\n");
+
+        output.push_str("endmodule\n\n");
+
+        output
+    }
+}
+
+impl VerilogEqn for Cell {
+    fn get_verilog_body(&self) -> String {
+        self.get_type().get_verilog_body()
     }
 }
 
