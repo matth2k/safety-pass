@@ -1,0 +1,54 @@
+diff --git a/safety-pass/src/passes.rs b/safety-pass/src/passes.rs
+--- a/safety-pass/src/passes.rs
++++ b/safety-pass/src/passes.rs
+@@ -559,7 +559,7 @@
+-/// TODO: Do whatever you want in this pass
++/// Swap the A and B inputs of every full adder.
+ #[derive(Debug)]
+ pub struct MyPass;
+ 
+ impl fmt::Display for MyPass {
+     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+         write!(f, "MyPass")
+     }
+@@ -571,10 +571,28 @@ impl Pass for MyPass {
+     fn run(&self, netlist: &Rc<Netlist<Self::I>>) -> Result<String, Error> {
+         use crate::CellType;
+ 
++        let mut swapped = 0;
++
+         for cell in netlist.matches(|p| p.get_type() == CellType::FA) {
+-            todo!("Do something with this full adder cell! Swap A and B?")
++            let Some(a) = cell.find_input(&"A".into()) else {
++                continue;
++            };
++            let Some(b) = cell.find_input(&"B".into()) else {
++                continue;
++            };
++            let Some(a_driver) = a.get_driver() else {
++                continue;
++            };
++            let Some(b_driver) = b.get_driver() else {
++                continue;
++            };
++
++            a.connect(b_driver);
++            b.connect(a_driver);
++
++            swapped += 1;
+         }
+ 
+-        Ok("TODO: Give some information on what the pass did".to_string())
++        Ok(format!("Swapped A and B inputs on {swapped} full adders"))
+     }
+ }
+ 
+@@ -657,7 +675,7 @@ register_passes!(BasicPasses<Cell>;
+     InsertScanChain,
+     /// List all nets in the netlist
+     ListNets<Cell>,
+-    /// TODO: say what this pass does
++    /// Swap A and B inputs on full adders
+     MyPass,
+     /// A dummy pass that emits the Verilog of the netlist.
+     PrintVerilog<Cell>,
