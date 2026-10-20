@@ -187,11 +187,11 @@ fn test_clone_into_inst_into() {
 #[test]
 fn test_inline() {
     let nl = simple_nl();
-    let inputs = nl.inputs().map(|n| Some(n)).collect::<Vec<_>>();
+    let inputs = nl.inputs().map(Some).collect::<Vec<_>>();
     let inst = ModInst::new(&nl);
 
     for i in 0..2 {
-        let res = inst.inline_into(&nl, Some(format_id!("inlined_{i}")), &inputs);
+        let res = inst.inline_into(&nl, format_id!("inlined_{i}"), &inputs);
         assert!(res.is_ok());
     }
 

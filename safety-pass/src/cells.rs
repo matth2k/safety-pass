@@ -538,11 +538,12 @@ impl<I: Instantiable> ModInst<I> {
     }
 
     /// Inlines `self`'s unique netlist into `netlist` using `drivers` as inputs
+    /// `prefix` is used to name all the cell instances that are inlined.
     /// On success, returns a vector of the outputs nets from the inlined netlist.
     pub fn inline_into<O: Instantiable + From<I>>(
         &self,
         netlist: &Rc<Netlist<O>>,
-        prefix: Option<Identifier>,
+        prefix: Identifier,
         drivers: &[Option<DrivenNet<O>>],
     ) -> Result<Vec<DrivenNet<O>>, safety_net::Error> {
         if drivers.len() != self.inputs.len() {
@@ -564,7 +565,10 @@ impl<I: Instantiable> ModInst<I> {
             if obj.is_an_input() {
                 continue;
             }
-            cells.push((netlist.clone_into(&obj, prefix.clone(), &mut map), obj));
+            cells.push((
+                netlist.clone_into(&obj, Some(prefix.clone()), &mut map),
+                obj,
+            ));
         }
 
         for (v, k) in cells {
@@ -896,7 +900,8 @@ pub fn inline_recursive<I: Instantiable>(
             let recur = inline_recursive(&m.netlist)?;
             let new_mod = ModInst::new(&recur);
             let drivers = inst.inputs().map(|i| i.get_driver()).collect::<Vec<_>>();
-            let outs = new_mod.inline_into(&base, inst.get_instance_name(), &drivers)?;
+            let inst_name = inst.get_instance_name().unwrap();
+            let outs = new_mod.inline_into(&base, inst_name, &drivers)?;
             for p in inst.outputs().zip(outs) {
                 pairs.push(p);
             }
