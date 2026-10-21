@@ -1,4 +1,5 @@
 /target
+*.v
 
 tutorial/obj_dir/
 tutorial/obj_dir_swapped/

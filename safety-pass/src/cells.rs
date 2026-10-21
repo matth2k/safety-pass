@@ -9,6 +9,67 @@ use safety_net::{
 };
 use std::{collections::HashMap, fmt, rc::Rc, str::FromStr};
 
+#[macro_export]
+/// Recursively creates a verilog expression from an input string
+macro_rules! logic_rule {
+    // base case
+    (@expr $cell_type:expr; $input_number:literal) => {{
+        let input_ports = $cell_type.get_input_ports();
+        input_ports[$input_number].to_string()
+    }};
+
+    // negation on single literial
+    (@expr $cell_type:expr; !$input_number:literal) => {{
+        let inner_string = logic_rule!(@expr $cell_type; $input_number);
+        format!("~{}", inner_string)
+    }};
+
+    // strip outer parens and recursively evaluate
+    (@expr $cell_type:expr; ($($inner:tt)+)) => {{
+        logic_rule!(@expr $cell_type; $($inner)+)
+    }};
+
+    // chain of 3+ operands, i.e A && B && C
+    (@expr $cell_type:expr; $first:tt && $($rest:tt)&&+) => {{
+        let first_string =  logic_rule!(@expr $cell_type; $first);
+        let rest_string = logic_rule!(@expr $cell_type; $($rest)&&+);
+        first_string + " & " + &rest_string
+    }};
+
+    // chain of 3+ operands; A || B || C ...
+    (@expr $cell_type:expr; $first:tt || $($rest:tt)||+) => {{
+        let first_string = logic_rule!(@expr $cell_type; $first);
+        let rest_string = logic_rule!(@expr $cell_type; $($rest)||+);
+        first_string + " | " + &rest_string
+    }};
+
+    // A && B
+    (@expr $cell_type:expr; $left:tt && $right:tt) => {{
+        let left_string = logic_rule!(@expr $cell_type; $left);
+        let right_string = logic_rule!(@expr $cell_type; $right);
+        left_string + " & " + &right_string
+    }};
+
+    // A || B
+    (@expr $cell_type:expr; $left:tt || $right:tt) => {{
+        let left_string = logic_rule!(@expr $cell_type; $left);
+        let right_string = logic_rule!(@expr $cell_type; $right);
+        left_string + " | " + &right_string
+    }};
+
+    // Take a list of equatiosn and write the assign lines for each
+    ($cell_type:expr; $($eqn:tt),+) => {{
+        let outs = $cell_type.get_output_ports();
+        let mut s = String::new();
+        let mut _i = 0;
+        $(
+            s += &format!("    assign {} = {};\n", outs[_i], logic_rule!(@expr $cell_type; $eqn));
+            _i += 1;
+        )+
+        return s;
+    }};
+}
+
 /// A logic cell type
 #[allow(missing_docs)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -69,6 +130,127 @@ pub enum CellType {
 }
 
 impl CellType {
+    /// Get verilog body
+    pub fn get_verilog_body(&self) -> String {
+        match self {
+            CellType::BUF => logic_rule!(self; 0),
+            CellType::NOT | CellType::INV => logic_rule!(self; (!0)),
+
+            CellType::AND | CellType::AND2 => logic_rule!(self; (0 && 1)),
+            CellType::OR | CellType::OR2 => logic_rule!(self; (0 || 1)),
+            CellType::XOR | CellType::XOR2 => logic_rule!(self; ((0 && (!1)) || ((!0) && 1))),
+            CellType::NAND | CellType::NAND2 => logic_rule!(self; ((!0) || (!1))),
+            CellType::NOR | CellType::NOR2 => logic_rule!(self; ((!0) && (!1))),
+            CellType::XNOR | CellType::XNOR2 => logic_rule!(self; ((0 && 1) || ((!0) && (!1)))),
+
+            // 3 input gates
+            CellType::AND3 => logic_rule!(self; (0 && 1 && 2)),
+            CellType::OR3 => logic_rule!(self; (0 || 1 || 2)),
+            CellType::NAND3 => logic_rule!(self; ((!0) || (!1) || (!2))),
+            CellType::NOR3 => logic_rule!(self; ((!0) && (!1) && (!2))),
+
+            // 4 input gates
+            CellType::AND4 => logic_rule!(self; (0 && 1 && 2 && 3)),
+            CellType::OR4 => logic_rule!(self; (0 || 1 || 2 || 3)),
+            CellType::NAND4 => logic_rule!(self; ((!0) || (!1) || (!2) || (!3))),
+            CellType::NOR4 => logic_rule!(self; ((!0) && (!1) && (!2) && (!3))),
+
+            // LUTs - represented as an INIT table indexed by the inputs
+            CellType::LUT1 => {
+                let p = self.get_input_ports();
+                format!("    assign O = INIT[{}];\n", p[0])
+            }
+            CellType::LUT2 => {
+                let p = self.get_input_ports();
+                format!("    assign O = INIT[{{{}, {}}}];\n", p[0], p[1])
+            }
+            CellType::LUT3 => {
+                let p = self.get_input_ports();
+                format!("    assign O = INIT[{{{}, {}, {}}}];\n", p[0], p[1], p[2])
+            }
+            CellType::LUT4 => {
+                let p = self.get_input_ports();
+                format!(
+                    "    assign O = INIT[{{{}, {}, {}, {}}}];\n",
+                    p[0], p[1], p[2], p[3]
+                )
+            }
+            CellType::LUT5 => {
+                let p = self.get_input_ports();
+                format!(
+                    "    assign O = INIT[{{{}, {}, {}, {}, {}}}];\n",
+                    p[0], p[1], p[2], p[3], p[4]
+                )
+            }
+            CellType::LUT6 => {
+                let p = self.get_input_ports();
+                format!(
+                    "    assign O = INIT[{{{}, {}, {}, {}, {}, {}}}];\n",
+                    p[0], p[1], p[2], p[3], p[4], p[5]
+                )
+            }
+
+            // constants don't have a logic expression
+            CellType::VCC => format!("    assign {} = 1'b1;\n", self.get_output_ports()[0]),
+            CellType::GND => format!("    assign {} = 1'b0;\n", self.get_output_ports()[0]),
+
+            CellType::FDRE => {
+                let p = self.get_input_ports(); // order is D, C, CE, R
+                let d = &p[0];
+                let c = &p[1];
+                let ce = &p[2];
+                let r = &p[3];
+                format!(
+                    "    always @(posedge {}) if ({}) Q <= 1'b0; else if ({}) Q <= {};\n",
+                    c, r, ce, d
+                )
+            }
+            CellType::FDSE | CellType::FDPE | CellType::FDCE => todo!("other flops"),
+
+            // multioutput cells
+            CellType::MAJ3 | CellType::HA | CellType::FA => {
+                todo!("multi-output cells")
+            }
+
+            // muxes, not sure how to represent select
+            CellType::MUX
+            | CellType::MUX2
+            | CellType::MUXF7
+            | CellType::MUXF8
+            | CellType::MUXF9 => {
+                todo!("mux cells are not implemented")
+            }
+
+            // AOI/OAI cells, make sure grouping is right before completing
+            CellType::AOI21
+            | CellType::OAI21
+            | CellType::AOI211
+            | CellType::AOI22
+            | CellType::OAI211
+            | CellType::OAI22
+            | CellType::OAI221
+            | CellType::AOI221
+            | CellType::OAI222
+            | CellType::AOI222 => {
+                todo!("AOI and OAI are not yet implemented 66")
+            }
+        }
+    }
+
+    /// Returns the default parameter values for a cell
+    pub fn get_default_parameters(&self) -> Vec<(Identifier, Parameter)> {
+        match self {
+            Self::LUT1 => vec![("INIT".into(), Parameter::bitvec(2, 0))],
+            Self::LUT2 => vec![("INIT".into(), Parameter::bitvec(4, 0))],
+            Self::LUT3 => vec![("INIT".into(), Parameter::bitvec(8, 0))],
+            Self::LUT4 => vec![("INIT".into(), Parameter::bitvec(16, 0))],
+            Self::LUT5 => vec![("INIT".into(), Parameter::bitvec(32, 0))],
+            Self::LUT6 => vec![("INIT".into(), Parameter::bitvec(64, 0))],
+            Self::FDRE => vec![("INIT".into(), Parameter::bitvec(1, 0))],
+            _ => vec![],
+        }
+    }
+
     /// Return the number of inputs
     pub fn get_num_inputs(&self) -> usize {
         match self {
@@ -275,6 +457,77 @@ impl CellType {
             Self::FA => Some(4.256),
             _ => None,
         }
+    }
+}
+
+/// Allows for Verilog generation for a cell
+pub trait VerilogEqn: Instantiable {
+    /// Returns the Verilog body expression for a given Cell's logic
+    fn get_verilog_body(&self) -> String;
+
+    /// Returns the default parameter values
+    fn get_default_parameters(&self) -> Vec<(Identifier, Parameter)>;
+
+    /// Builds the full module definition for a given Cell
+    fn get_verilog_module(&self) -> String {
+        let mut output = String::new();
+
+        let input_ports = self.get_input_ports();
+        let output_ports = self.get_output_ports();
+        let out_port_name = output_ports[0].to_string();
+
+        output.push_str("module ");
+        output.push_str(&self.get_name().to_string());
+
+        let params = self.get_default_parameters();
+        if !params.is_empty() {
+            output.push_str(" #(\n");
+            let l = params.len();
+            for (i, (k, v)) in params.into_iter().enumerate() {
+                output.push_str("  parameter ");
+                output.push_str(&k.to_string());
+                output.push_str(" = ");
+                output.push_str(&v.to_string());
+                if i != l - 1 {
+                    output.push_str(",\n");
+                }
+            }
+            output.push('\n');
+            output.push(')');
+        }
+
+        output.push_str(" (\n");
+
+        let mut i = 0;
+        while i < input_ports.len() {
+            output.push_str("    input ");
+            output.push_str(&input_ports[i].to_string());
+            output.push_str(",\n");
+            i += 1;
+        }
+        // Need to check know if it is sequenetial or not b/c we support registers
+        if self.is_seq() {
+            output.push_str("    output reg ");
+        } else {
+            output.push_str("    output ");
+        }
+        output.push_str(&out_port_name);
+        output.push_str("\n);\n");
+
+        output.push_str(&self.get_verilog_body());
+        output.push_str("endmodule\n\n");
+
+        output
+    }
+}
+
+impl VerilogEqn for Cell {
+    fn get_verilog_body(&self) -> String {
+        self.get_type().get_verilog_body()
+    }
+
+    fn get_default_parameters(&self) -> Vec<(Identifier, Parameter)> {
+        self.get_type().get_default_parameters()
     }
 }
 
