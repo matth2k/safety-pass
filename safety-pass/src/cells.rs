@@ -201,8 +201,8 @@ impl CellType {
                 let ce = &p[2];
                 let r = &p[3];
                 format!(
-                    "    always @(posedge {}) if ({}) Q <= 1'b0; else if ({}) Q <= {};\n",
-                    c, r, ce, d
+                    "    always @(posedge {}) if ({}) begin if ({}) Q <= INIT; else Q <= {}; end\n",
+                    c, ce, r, d
                 )
             }
             CellType::FDSE | CellType::FDPE | CellType::FDCE => todo!("other flops"),
@@ -212,12 +212,13 @@ impl CellType {
                 todo!("multi-output cells")
             }
 
-            // muxes, not sure how to represent select
-            CellType::MUX
-            | CellType::MUX2
-            | CellType::MUXF7
-            | CellType::MUXF8
-            | CellType::MUXF9 => {
+            CellType::MUX => {
+                // [0 = S, 1 = A, 2 = B]
+                logic_rule!(self; (((!0) && 2) || (1 && 2) || (0 && 1) )) // 1 && 2 is redundant
+            }
+
+            // mux2, not sure how to represent select
+            CellType::MUX2 | CellType::MUXF7 | CellType::MUXF8 | CellType::MUXF9 => {
                 todo!("mux cells are not implemented")
             }
 
@@ -529,6 +530,58 @@ impl VerilogEqn for Cell {
     fn get_default_parameters(&self) -> Vec<(Identifier, Parameter)> {
         self.get_type().get_default_parameters()
     }
+}
+
+/// Builds the full simlib.v text from our cell definitions, specfically only the ones that simlib.v uses
+pub fn generate_simlib() -> String {
+    // only the cells simlib.v actually has, others just will be todo!
+    let cells = [
+        CellType::LUT1,
+        CellType::LUT2,
+        CellType::LUT3,
+        CellType::LUT4,
+        CellType::LUT5,
+        CellType::LUT6,
+        CellType::AND2,
+        CellType::NAND2,
+        CellType::NOR2,
+        CellType::OR2,
+        CellType::XOR2,
+        CellType::AND,
+        CellType::NAND,
+        CellType::NOR,
+        CellType::OR,
+        CellType::XOR,
+        CellType::NOT,
+        CellType::INV,
+        CellType::MUX,
+        CellType::FDRE,
+    ];
+
+    let mut output = String::new();
+
+    for cell_type in cells {
+        // get the module text for this one cell
+        let mut module = Cell::new(cell_type, None).get_verilog_module();
+
+        // AND2, NAND2, NOR2, OR2, and XOR2 need to have their inputs renamed to match what simlib.v contains
+        // The rest can simply be copied over as they are
+        match cell_type {
+            CellType::AND2 | CellType::NAND2 | CellType::NOR2 | CellType::OR2 => {
+                module = module.replace("A1", "A"); // A1 -> A
+                module = module.replace("A2", "B"); // A2 -> B
+                module = module.replace("ZN", "Y"); // zN -> Y
+            }
+            CellType::XOR2 => {
+                module = module.replace("output Z", "output Y"); // Z -> Y
+                module = module.replace("assign Z", "assign Y"); // Z -> Y
+            }
+            _ => {} // everything else is already right, dont need to change anythign
+        }
+
+        output.push_str(&module);
+    }
+    output
 }
 
 impl FromStr for CellType {
