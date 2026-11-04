@@ -562,7 +562,7 @@ pub fn generate_simlib() -> String {
 
     for cell_type in cells {
         // get the module text for this one cell
-        let mut module = Cell::new(cell_type.clone(), None).get_verilog_module();
+        let mut module = Cell::new(cell_type, None).get_verilog_module();
 
         // AND2, NAND2, NOR2, OR2, and XOR2 need to have their inputs renamed to match what simlib.v contains
         // The rest can simply be copied over as they are
@@ -581,7 +581,7 @@ pub fn generate_simlib() -> String {
 
         output.push_str(&module);
     }
-    return output;
+    output
 }
 
 impl FromStr for CellType {

@@ -89,7 +89,7 @@ fn mux_body() {
     println!("{}", Cell::new(CellType::MUX, None).get_verilog_module());
 }
 
-// really basic sanity checks, main check will be seeing does it actually work for eqmap flow 
+// really basic sanity checks, main check will be seeing does it actually work for eqmap flow
 #[test]
 fn check_simlib() {
     let simlib: String = safety_pass::generate_simlib();
@@ -97,10 +97,7 @@ fn check_simlib() {
     // write it out so we can compare against eqmap's simlib.v, do at start in case fails bellow
     std::fs::write("simlib_gen.v", &simlib).unwrap();
 
-
-
     assert!(simlib.contains("module MUX"));
     assert!(simlib.contains("module FDRE"));
     assert!(!simlib.contains("A1")); // did the rename work
-
 }
